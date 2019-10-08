@@ -1,31 +1,40 @@
-library(RnBeads)
-library(GEOquery)
-library(limma)
+library(broom)
+library(dplyr)
+library(glmnet)
+library(parallel)
+library(rlang)
 
-omicreg = function (X, W, Y, test="marginal", cl=NULL) {
+.check_input = function (X, W, Y) {
   # X: phenotypes (and covariates); samples x phenotype(s)
   # W: proportion of cell types; samples x cell types
   # Y: bulk omics measurements; probes x samples
   # X, W, Y should be numeric
   if (!is.matrix(Y)) {
-    abort("ERROR: Y should be a matrix.")
+    abort("Error: Y must be a matrix.")
   }
   if (is.null(dim(W))) {
-    abort("ERROR: W should be a matrix or dataframe.")
+    abort("Error: W must be a matrix or dataframe.")
   } else {
     if (ncol(Y) != nrow(W)) {
-      abort("ERROR: ncol(Y) != nrow(W)")
+      abort("Error: ncol(Y) must equal nrow(W)")
     }
   }
   if (is.null(dim(X))) {
     if (ncol(Y) != length(X)) {
-      abort("ERROR: ncol(Y) != length(vector X)")
+      abort("Error: ncol(Y) must equal length(vector X)")
     }
   } else {
     if (ncol(Y) != nrow(X)) {
-      abort("ERROR: ncol(Y) != nrow(matrix X)")
+      abort("Error: ncol(Y) must equal nrow(matrix X)")
     }
   }
+  return(0)
+}
+
+
+
+omicreg = function (X, W, Y, test="marginal", cl=NULL) {
+  .check_input(X,W,Y)
   Y = t(Y)
   result = parApply(cl,
                     W,
@@ -52,37 +61,24 @@ omicreg = function (X, W, Y, test="marginal", cl=NULL) {
 
 
 omicridgereg = function (X, W, Y, test="regularize", alpha=0, cl=NULL,
-                         lower.limit=NULL, upper.limit=NULL) {
+                         lower.limit=NULL, upper.limit=NULL,
+                         num_cores = NULL) {
   # alpha: 0 for Ridge regression; 1 for Lasso; inbetween for elastic net
-  # X: phenotypes (and covariates); samples x phenotype(s)
-  # W: proportion of cell types; samples x cell types
-  # Y: bulk omics measurements; probes x samples
-  # X, W, Y should be numeric
   # lower.limit, upper.limit: lowest and highest expression level
   # (in any cell type).  If NULL, set as min(Y), max(Y).
   # This should be 0 and 1 for methylation data.
   # Probes with different bound (eg. methylation and gene expression)
   # should not be mixed in one dataset.
-  if (!is.matrix(Y)) {
-    abort("Error: Y must be a matrix.")
-  }
-  if (is.null(dim(W))) {
-    abort("Error: W must be a matrix or dataframe.")
-  } else {
-    if (ncol(Y) != nrow(W)) {
-      abort("Error: ncol(Y) must equal nrow(W)")
-    }
-  }
-  if (is.null(dim(X))) {
-    if (ncol(Y) != length(X)) {
-      abort("Error: ncol(Y) must equal length(vector X)")
-    }
-  } else {
-    if (ncol(Y) != nrow(X)) {
-      abort("Error: ncol(Y) must equal nrow(matrix X)")
-    }
-  }
 
+  if (is.numeric(num_cores)) {
+    cl = makeCluster(num_cores)
+  }
+  on.exit(stopCluster(cl))
+
+  .check_input(X,W,Y)
+  X = data.frame(t(t(X)-colMeans(X)))
+  
+  
 colnamesXoriginal = colnames(X)
 colnamesWoriginal = colnames(W)
 colnames(X) = gsub("\\.", "_", colnames(X))
@@ -95,13 +91,13 @@ colnamesWconvert = data.frame(original=colnamesWoriginal,
                               new=colnames(W),
                               stringsAsFactors=FALSE)
 
-X = data.frame(t(t(X)-colMeans(X)))
 WX = do.call(cbind, apply(W, 2, function(W_h) {cbind(X,1) * W_h}))
 WX = as.matrix(WX)
 # For constant terms; base level meth in each cell type
 if (is.null(lower.limit)) {
   lower.limit = min(Y, na.rm=TRUE)
 }
+lower.limit = min(0, lower.limit) # for glmnet
 if (is.null(upper.limit)) {
   upper.limit = max(Y, na.rm=TRUE)
 }
@@ -191,7 +187,6 @@ result =
     return(ridge.mod$beta[,1])
   },
   WX, alpha, penalty.factor, lower.limits, upper.limits)
-library(dplyr, quietly=TRUE)
 result = data.frame(t(result))
 result$response = rownames(result)
 result = tidyr::pivot_longer(result,
@@ -211,7 +206,7 @@ result = result %>%
             by="celltypeterm") %>%
   mutate(statistic=sqrt(nrow(WX))*estimate*WXSd/YSd) %>% # abs(statistic/sqrt(nrow(WX))) >> 1 occurs for term=="1"
   mutate(p.value=pnorm(abs(statistic), lower.tail=FALSE)*2) %>%
-  select(-c('YSd', 'WXSd'))
+  dplyr::select(-c('YSd', 'WXSd'))
 
 },
 "regression" = {
@@ -230,6 +225,6 @@ result$term =
   colnamesXconvert$original[
   match(sub(".*\\.", "", result$celltypeterm),
         colnamesXconvert$new)]
-result = select(result, c(response, celltype, term, estimate, statistic, p.value))
+result = dplyr::select(result, c(response, celltype, term, estimate, statistic, p.value))
 return(result)
 }
