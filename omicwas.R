@@ -76,23 +76,16 @@ omicridgereg = function (X, W, Y, test="regularize", alpha=0, cl=NULL,
   on.exit(stopCluster(cl))
 
   .check_input(X,W,Y)
+  Xoriginal = X
+  Woriginal = W
   X = data.frame(t(t(X)-colMeans(X)))
   
-  
-colnamesXoriginal = colnames(X)
-colnamesWoriginal = colnames(W)
-colnames(X) = gsub("\\.", "_", colnames(X))
-colnames(W) = gsub("\\.", "_", colnames(W))
-colnamesXconvert = data.frame(original=colnamesXoriginal,
-                              new=colnames(X),
-                              stringsAsFactors=FALSE)
-colnamesXconvert = rbind(colnamesXconvert, c("1","1")) # intercept term
-colnamesWconvert = data.frame(original=colnamesWoriginal,
-                              new=colnames(W),
-                              stringsAsFactors=FALSE)
+  # Maintain irreversibility when combining to WX by "."
+  colnames(X) = gsub("\\.", "_", colnames(X))
+  colnames(W) = gsub("\\.", "_", colnames(W))
+  WX = do.call(cbind, apply(W, 2, function(W_h) {cbind(X,1) * W_h}))
+  WX = as.matrix(WX)
 
-WX = do.call(cbind, apply(W, 2, function(W_h) {cbind(X,1) * W_h}))
-WX = as.matrix(WX)
 # For constant terms; base level meth in each cell type
 if (is.null(lower.limit)) {
   lower.limit = min(Y, na.rm=TRUE)
@@ -217,14 +210,15 @@ result = result %>%
 }) # switch
 
 inform("Summarizing result ...")
+
 result$celltype =
-colnamesWconvert$original[
-  match(sub("\\..*", "", result$celltypeterm),
-        colnamesWconvert$new)]
+  c(colnames(Woriginal), "1")[
+    match(sub("\\..*", "", result$celltypeterm),
+          c(colnames(W), "1"))]
 result$term =
-  colnamesXconvert$original[
-  match(sub(".*\\.", "", result$celltypeterm),
-        colnamesXconvert$new)]
+  c(colnames(Xoriginal), "1")[
+    match(sub(".*\\.", "", result$celltypeterm),
+          c(colnames(X), "1"))]
 result = dplyr::select(result, c(response, celltype, term, estimate, statistic, p.value))
 return(result)
 }
