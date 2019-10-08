@@ -35,34 +35,31 @@ omicassoc = function (X, W, Y, test,
                       alpha = 0,
                       lower.limit = NULL,
                       upper.limit = NULL,
-                      num_cores = NULL) {
+                      num_cores = 1) {
   .check_input(X,W,Y)
   if (!(test %in% c("regularize", "full", "marginal"))) {
     abort('Error: test must be either "regularize", "full" or "marginal"')
   }
-  switch(test,
-         "regularize" = {
-           .full_assoc(X, W, Y, test,
-                       alpha = alpha,
-                       lower.limit = lower.limit,
-                       upper.limit = upper.limit,
-                       num_cores = num_cores)
-         },
-         "full" = {
-           .full_assoc(X, W, Y, test)
-         },
-         "marginal" = {
-           .marginal_assoc(X, W, Y,
-                           num_cores = num_cores)
-         })
+  switch(test, "regularize" = {
+    .full_assoc(X, W, Y, test,
+                alpha = alpha,
+                lower.limit = lower.limit,
+                upper.limit = upper.limit,
+                num_cores = num_cores)
+  }, "full" = {
+    .full_assoc(X, W, Y, test)
+  }, "marginal" = {
+    .marginal_assoc(X, W, Y,
+                    num_cores = num_cores)
+  })
 }
 
 
 .marginal_assoc = function (X, W, Y, num_cores) {
-  if (is.numeric(num_cores)) {
-    cl = makeCluster(num_cores)
-  }
+  cl = makeCluster(num_cores)
   on.exit(stopCluster(cl))
+
+  X = data.frame(t(t(X)-colMeans(X)))
   
   Y = t(Y)
   result = parApply(cl,
@@ -98,12 +95,9 @@ omicassoc = function (X, W, Y, test,
   # Probes with different bound (eg. methylation and gene expression)
   # should not be mixed in one dataset.
 
-  if (is.numeric(num_cores)) {
-    cl = makeCluster(num_cores)
-  }
+  cl = makeCluster(num_cores)
   on.exit(stopCluster(cl))
 
-  .check_input(X,W,Y)
   Xoriginal = X
   Woriginal = W
   X = data.frame(t(t(X)-colMeans(X)))
@@ -114,6 +108,13 @@ omicassoc = function (X, W, Y, test,
   WX = do.call(cbind, apply(W, 2, function(W_h) {cbind(X,1) * W_h}))
   WX = as.matrix(WX)
 
+  switch(test, "regression" = { # ------------------------------
+    result = broom::tidy(lm(y ~ 0 + x,
+                            data = list(y = t(Y), x = WX)))
+    result$term = sub("^x", "", result$term)
+    result = rename(result, celltypeterm = term)
+    
+  },"regularize" = { # -----------------------------------------
   # For constant terms, don't apply regularization penalty,
   # but bind by (methylation) level in each cell type.
   constantindices = (ncol(X)+1)*(1:ncol(W))
@@ -131,63 +132,39 @@ omicassoc = function (X, W, Y, test,
   upper.limits = rep(Inf, ncol(WX))
   upper.limits[constantindices] = upper.limit
   
-
-switch(test,
-       "regularize" = {
-
-inform("Inferring hyperparameter ...")
-if (nrow(Y) < 500) {
-  Ysmall = Y
-} else {
-  set.seed(123)
-  Ysmall = Y[sample(nrow(Y),500), ]
-}
-
-opt_lambda_list_small =
-  apply(Ysmall,
-        1,
-        function (y) {
-          set.seed(123)
-          cv_fit = glmnet::cv.glmnet(x=WX,
-                             y=y,
-                             alpha=alpha,
-                             intercept=0,
-                             standardize=TRUE,
-                             penalty.factor=penalty.factor,
-                             lower.limits=lower.limits,
-                             upper.limits=upper.limits,
-                             lambda=exp(seq(15,-15,-0.5))) # Is this versatile??
-          return(cv_fit$lambda.min) }) #  lambda.1se
-
-# if (nrow(Y) < 200) {
-#   opt_lambda_list = opt_lambda_list_small
-# } else {
-#   # valid only for when penalty.factor unspecified
-# lol = log(opt_lambda_list_small)
-# lrM = log(rowMeans(Ysmall))
-# lrV = log(rowVars(Ysmall))
-# lambda.mod = lm(lol ~ lrM + lrV)
-# # plot(lol, predict(lambda.mod, newdata=data.frame(lrM,lrV)))
-# lrM = log(rowMeans(Y))
-# lrV = log(rowVars(Y))
-# opt_lambda_list = exp(predict(lambda.mod, newdata=data.frame(lrM,lrV)))
-# 
-# # just a try that didn't work
-# res = apply(Ysmall, 1,
-# function (y) {
-# a0 = lm(y ~ 0 + x, data=list(y=y, x=as.matrix(W)))
-# a1 = optim(pmax(pmin(a0$coefficients, 1), 0),
-#            function(x) {sum( (colSums(t(as.matrix(W))*x) - y)^2 )},
-#            method="L-BFGS-B",
-#            lower=0,
-#            upper=1)
-# return(a1$value)
-# })
-# # plot(log(res), lol)
-#opt_lambda_list = rep(median(opt_lambda_list_small), nrow(Y))
-opt_lambda_list = rep(quantile(opt_lambda_list_small,0.25), nrow(Y))
-names(opt_lambda_list) = NULL
-
+  inform("Inferring hyperparameter ...")
+  samplingsize = 500
+  if (nrow(Y) < samplingsize) {
+    Ysmall = Y
+  } else {
+    set.seed(123)
+    Ysmall = Y[sample(nrow(Y), samplingsize), ]
+  }
+  opt_lambda_list_small =
+    parApply(
+      cl,
+      Ysmall,
+      1,
+      function (y, WX, alpha, penalty.factor, lower.limits, upper.limits) {
+        set.seed(123)
+        cv_fit = glmnet::cv.glmnet(
+          x = WX,
+          y = y,
+          alpha = alpha,
+          intercept = 0,
+          penalty.factor = penalty.factor,
+          lower.limits = lower.limits,
+          upper.limits = upper.limits,
+          lambda = exp(seq(15, -15, -0.5))) # Is this versatile??
+        return(cv_fit$lambda.min) },
+      WX, alpha, penalty.factor, lower.limits, upper.limits)
+  if (nrow(Y) < samplingsize) {
+    opt_lambda_list = opt_lambda_list_small
+  } else {
+    opt_lambda_list = rep(quantile(opt_lambda_list_small, 0.25), nrow(Y))
+    names(opt_lambda_list) = NULL
+  }
+  
 inform("Regularized regression ...")
 result =
   parApply(cl,
@@ -201,7 +178,6 @@ result =
                        y=y,
                        alpha=alpha,
                        intercept=0,
-                       standardize=TRUE,
                        penalty.factor=penalty.factor,
                        lower.limits=lower.limits,
                        upper.limits=upper.limits,
@@ -230,13 +206,7 @@ result = result %>%
   mutate(p.value=pnorm(abs(statistic), lower.tail=FALSE)*2) %>%
   dplyr::select(-c('YSd', 'WXSd'))
 
-},
-"regression" = {
-  result = broom::tidy(lm(y ~ 0 + x,
-                       data=list(y=t(Y), x=WX)))
-  result$term = sub("^x", "", result$term)
-  result = rename(result, celltypeterm=term)
-}) # switch
+}) # end switch ------------------------------
 
 inform("Summarizing result ...")
 
