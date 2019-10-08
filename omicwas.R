@@ -31,38 +31,66 @@ library(rlang)
   return(0)
 }
 
-
-
-omicreg = function (X, W, Y, test="marginal", cl=NULL) {
+omicassoc = function (X, W, Y, test,
+                      alpha = 0,
+                      lower.limit = NULL,
+                      upper.limit = NULL,
+                      num_cores = NULL) {
   .check_input(X,W,Y)
+  if (!(test %in% c("regularize", "full", "marginal"))) {
+    abort('Error: test must be either "regularize", "full" or "marginal"')
+  }
+  switch(test,
+         "regularize" = {
+           .full_assoc(X, W, Y, test,
+                       alpha = alpha,
+                       lower.limit = lower.limit,
+                       upper.limit = upper.limit,
+                       num_cores = num_cores)
+         },
+         "full" = {
+           .full_assoc(X, W, Y, test)
+         },
+         "marginal" = {
+           .marginal_assoc(X, W, Y,
+                           num_cores = num_cores)
+         })
+}
+
+
+.marginal_assoc = function (X, W, Y, num_cores) {
+  if (is.numeric(num_cores)) {
+    cl = makeCluster(num_cores)
+  }
+  on.exit(stopCluster(cl))
+  
   Y = t(Y)
   result = parApply(cl,
                     W,
                  2,
-                 function(W_h, X, W, Y, test) {
+                 function(W_h, X, W, Y) {
                    print("*")
-                   switch(test,
-                          marginal = {
-                            Xweighted = cbind(X,1) * W_h
-                            res = broom::tidy(lm(y ~ x,
-                                            data=list(y=Y, x=as.matrix(Xweighted))))
-                          },
-                          marginalpropadjusted = {
+
+# DEPRECATED; can be heavily biased
+                          #   Xweighted = cbind(X,1) * W_h
+                          #   res = broom::tidy(lm(y ~ x,
+                          #                   data=list(y=Y, x=as.matrix(Xweighted))))
                             Xweighted = cbind(W, X * W_h)
                             res = broom::tidy(lm(y ~ 0 + x,
                                           data=list(y=Y, x=as.matrix(Xweighted))))
-                          })
                    res$term = sub("^x", "", res$term)
                    return(res) },
-                 X, W, Y, test)
+                 X, W, Y)
   names(result) = colnames(W)
   return(result)
 }
 
 
-omicridgereg = function (X, W, Y, test="regularize", alpha=0, cl=NULL,
-                         lower.limit=NULL, upper.limit=NULL,
-                         num_cores = NULL) {
+.full_assoc = function (X, W, Y, test,
+                        alpha,
+                        lower.limit,
+                        upper.limit,
+                        num_cores) {
   # alpha: 0 for Ridge regression; 1 for Lasso; inbetween for elastic net
   # lower.limit, upper.limit: lowest and highest expression level
   # (in any cell type).  If NULL, set as min(Y), max(Y).
@@ -86,22 +114,23 @@ omicridgereg = function (X, W, Y, test="regularize", alpha=0, cl=NULL,
   WX = do.call(cbind, apply(W, 2, function(W_h) {cbind(X,1) * W_h}))
   WX = as.matrix(WX)
 
-# For constant terms; base level meth in each cell type
-if (is.null(lower.limit)) {
-  lower.limit = min(Y, na.rm=TRUE)
-}
-lower.limit = min(0, lower.limit) # for glmnet
-if (is.null(upper.limit)) {
-  upper.limit = max(Y, na.rm=TRUE)
-}
-constantindices = (ncol(X)+1)*(1:ncol(W))
-penalty.factor = rep(1, ncol(WX))
-penalty.factor[constantindices] = 0
-lower.limits = rep(-Inf, ncol(WX))
-lower.limits[constantindices] = lower.limit
-upper.limits = rep(Inf, ncol(WX))
-upper.limits[constantindices] = upper.limit
-
+  # For constant terms, don't apply regularization penalty,
+  # but bind by (methylation) level in each cell type.
+  constantindices = (ncol(X)+1)*(1:ncol(W))
+  penalty.factor = rep(1, ncol(WX))
+  penalty.factor[constantindices] = 0
+  if (is.null(lower.limit)) {
+    lower.limit = min(Y, na.rm=TRUE)
+  }
+  lower.limit = min(0, lower.limit) # non-positive for glmnet
+  if (is.null(upper.limit)) {
+    upper.limit = max(Y, na.rm=TRUE)
+  }
+  lower.limits = rep(-Inf, ncol(WX))
+  lower.limits[constantindices] = lower.limit
+  upper.limits = rep(Inf, ncol(WX))
+  upper.limits[constantindices] = upper.limit
+  
 
 switch(test,
        "regularize" = {
