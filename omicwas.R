@@ -13,6 +13,7 @@ omicassoc = function (X, W, Y, test,
                       upper.limit = NULL,
                       num_cores = 1) {
   .check_input(X,W,Y)
+  X = data.frame(t(t(X)-colMeans(X)))
   if (!(test %in% c("ridge", "glmnet", "full", "marginal"))) {
     abort('Error: test must be either "ridge", "glmnet", "full" or "marginal"')
   }
@@ -65,7 +66,6 @@ omicassoc = function (X, W, Y, test,
   cl = makeCluster(num_cores)
   on.exit(stopCluster(cl))
   
-  X = data.frame(t(t(X)-colMeans(X)))
   Y = t(Y)
   result = parApply(
     cl,
@@ -106,8 +106,7 @@ omicassoc = function (X, W, Y, test,
 
   Xoriginal = X
   Woriginal = W
-  X = data.frame(t(t(X)-colMeans(X)))
-  
+
   # Maintain irreversibility when combining colnames by "." to XW, X1W
   colnames(X) = gsub("\\.", "_", colnames(X))
   colnames(W) = gsub("\\.", "_", colnames(W))
