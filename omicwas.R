@@ -1,7 +1,10 @@
 library(broom)
+library(data.table)
 library(dplyr)
 library(glmnet)
+library(matrixStats)
 library(parallel)
+library(ridge)
 library(rlang)
 
 omicassoc = function (X, W, Y, test,
@@ -10,10 +13,13 @@ omicassoc = function (X, W, Y, test,
                       upper.limit = NULL,
                       num_cores = 1) {
   .check_input(X,W,Y)
-  if (!(test %in% c("regularize", "full", "marginal"))) {
-    abort('Error: test must be either "regularize", "full" or "marginal"')
+  if (!(test %in% c("ridge", "glmnet", "full", "marginal"))) {
+    abort('Error: test must be either "ridge", "glmnet", "full" or "marginal"')
   }
-  switch(test, "regularize" = {
+  switch(test, "ridge" = {
+    .full_assoc(X, W, Y, test,
+                num_cores = num_cores)
+  }, "glmnet" = {
     .full_assoc(X, W, Y, test,
                 alpha = alpha,
                 lower.limit = lower.limit,
@@ -102,24 +108,49 @@ omicassoc = function (X, W, Y, test,
   Woriginal = W
   X = data.frame(t(t(X)-colMeans(X)))
   
-  # Maintain irreversibility when combining colnames by "." to WX
+  # Maintain irreversibility when combining colnames by "." to XW, X1W
   colnames(X) = gsub("\\.", "_", colnames(X))
   colnames(W) = gsub("\\.", "_", colnames(W))
-  WX = do.call(cbind, apply(W, 2, function(W_h) {cbind(X, 1) * W_h}))
-  WX = as.matrix(WX)
+  XW = do.call(cbind, apply(W, 2, function(W_h) {X * W_h}))
+  XW = as.matrix(XW)
+  X1W = do.call(cbind, apply(W, 2, function(W_h) {cbind(X, 1) * W_h}))
+  X1W = as.matrix(X1W)
 
   switch(test, "full" = { # ------------------------------
     inform("Linear regression ...")
     result = broom::tidy(lm(y ~ 0 + x,
-                            data = list(y = t(Y), x = WX)))
+                            data = list(y = t(Y), x = X1W)))
     result$term = sub("^x", "", result$term)
     result = dplyr::rename(result, celltypeterm = term)
     
-  },"regularize" = { # -----------------------------------------
+  }, "ridge" = { # -----------------------------------------
+    inform("Ridge regression ...")
+    tYadjXW = lm(y ~ 0 + x,
+                data = list(y = t(Y), x = as.matrix(W)))$residuals
+    result =
+      parApply(
+        cl,
+        tYadjXW,
+        2,
+        function (y, XW) {
+          mod = ridge::linearRidge(y ~ 0 + x,
+                                   data = list(y = y, x = XW))
+          fun = getFromNamespace("summary.ridgeLinear", "ridge")
+          res = data.frame(fun(mod)$summaries[[mod$chosen.nPCs]]$coefficients)
+          res$celltypeterm = sub("^x", "", rownames(res))
+          rownames(res) = NULL
+          res = res[, c("Estimate", "t.value..scaled.", "Pr...t..", "celltypeterm")]
+          colnames(res)[1:3] = c("estimate", "statistic", "p.value")
+          return(res) },
+        XW)
+    result = dplyr::as_tibble(data.table::rbindlist(result, idcol="response"))
+    result$statistic = sign(result$estimate) * result$statistic
+
+  }, "glmnet" = { # -----------------------------------------
   # For constant terms, don't apply regularization penalty,
   # but bind by (methylation) level in each cell type.
   constantindices = (ncol(X)+1)*(1:ncol(W))
-  penalty.factor = rep(1, ncol(WX))
+  penalty.factor = rep(1, ncol(X1W))
   penalty.factor[constantindices] = 0
   if (is.null(lower.limit)) {
     lower.limit = min(Y, na.rm=TRUE)
@@ -128,9 +159,9 @@ omicassoc = function (X, W, Y, test,
   if (is.null(upper.limit)) {
     upper.limit = max(Y, na.rm=TRUE)
   }
-  lower.limits = rep(-Inf, ncol(WX))
+  lower.limits = rep(-Inf, ncol(X1W))
   lower.limits[constantindices] = lower.limit
-  upper.limits = rep(Inf, ncol(WX))
+  upper.limits = rep(Inf, ncol(X1W))
   upper.limits[constantindices] = upper.limit
   
   inform("Fitting hyperparameter ...")
@@ -146,10 +177,10 @@ omicassoc = function (X, W, Y, test,
       cl,
       Ysmall,
       1,
-      function (y, WX, alpha, penalty.factor, lower.limits, upper.limits) {
+      function (y, X1W, alpha, penalty.factor, lower.limits, upper.limits) {
         set.seed(123)
         cv_fit = glmnet::cv.glmnet(
-          x = WX,
+          x = X1W,
           y = y,
           alpha = alpha,
           lambda = exp(seq(15, -15, -0.5)), # Is this versatile??
@@ -158,7 +189,7 @@ omicassoc = function (X, W, Y, test,
           lower.limits = lower.limits,
           upper.limits = upper.limits)
         return(cv_fit$lambda.min) },
-      WX, alpha, penalty.factor, lower.limits, upper.limits)
+      X1W, alpha, penalty.factor, lower.limits, upper.limits)
   if (nrow(Y) < samplingsize) {
     opt_lambda_list = opt_lambda_list_small
   } else {
@@ -172,12 +203,12 @@ omicassoc = function (X, W, Y, test,
       cl,
       cbind(opt_lambda_list, Y),
       1,
-      function (ly, WX, alpha, penalty.factor, lower.limits, upper.limits) {
+      function (ly, X1W, alpha, penalty.factor, lower.limits, upper.limits) {
         l = ly[1]
         y = ly[-1]
         set.seed(123)
         ridge.mod = glmnet::glmnet(
-          x = WX,
+          x = X1W,
           y = y,
           alpha = alpha,
           lambda = l,
@@ -186,7 +217,7 @@ omicassoc = function (X, W, Y, test,
           lower.limits = lower.limits,
           upper.limits = upper.limits)
         return(ridge.mod$beta[, 1]) },
-      WX, alpha, penalty.factor, lower.limits, upper.limits)
+      X1W, alpha, penalty.factor, lower.limits, upper.limits)
   result = data.frame(t(result))
   result$response = rownames(result)
   result = tidyr::pivot_longer(
@@ -201,7 +232,7 @@ omicassoc = function (X, W, Y, test,
                   data = list(y = t(Y), x = as.matrix(W))
                   )$residuals)
   # constantindiceslong = 
-  #   rep(0:(nrow(Y)-1), each=length(constantindices)) * ncol(WX) +
+  #   rep(0:(nrow(Y)-1), each=length(constantindices)) * ncol(X1W) +
   #     constantindices
   # YSd[constantindiceslong] = colSds(Y)[constantindiceslong]
   # result$YSd = YSd
@@ -210,14 +241,14 @@ omicassoc = function (X, W, Y, test,
                          YSd = YSd,
                          stringsAsFactors = FALSE),
               by = "response") %>%
-    left_join(data.frame(celltypeterm = colnames(WX),
-                         WXSd = colSds(WX),
+    left_join(data.frame(celltypeterm = colnames(X1W),
+                         X1WSd = colSds(X1W),
                          stringsAsFactors = FALSE),
               by="celltypeterm") %>%
-    # Note: abs(statistic/sqrt(nrow(WX))) >> 1 occurs for term=="1"
-    dplyr::mutate(statistic = sqrt(nrow(WX))*estimate*WXSd/YSd) %>%
+    # Note: abs(statistic/sqrt(nrow(X1W))) >> 1 occurs for term=="1"
+    dplyr::mutate(statistic = sqrt(nrow(X1W))*estimate*X1WSd/YSd) %>%
     dplyr::mutate(p.value = pnorm(abs(statistic), lower.tail = FALSE)*2) %>%
-    dplyr::select(-c('YSd', 'WXSd'))
+    dplyr::select(-c('YSd', 'X1WSd'))
   }) # end switch ------------------------------
 
   inform("Summarizing result ...")
