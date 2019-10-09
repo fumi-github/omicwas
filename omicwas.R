@@ -87,8 +87,11 @@ omicassoc = function (X, W, Y, test,
                         num_cores) {
   # alpha: 0 for Ridge regression; 1 for Lasso; inbetween for elastic net
   # lower.limit, upper.limit: lowest and highest expression level
-  # (in any cell type).  If NULL, set as min(Y), max(Y).
-  # This should be 0 and 1 for methylation data.
+  # (in any cell type).
+  # The values bind the range of intercepts for the level in a cell type.
+  # These should be 0 and 1 for methylation data.
+  # If NULL, automatically set to min(Y), max(Y).
+  # To disable the binding, set explicitly to -Inf and Inf.
   # Probes with different bound (eg. methylation and gene expression)
   # should not be mixed in one dataset.
 
