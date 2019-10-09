@@ -8,14 +8,18 @@ library(ridge)
 library(rlang)
 
 omicassoc = function (X, W, Y, test,
+                      remove.unwanted.variation = TRUE,
                       alpha = 0,
                       lower.limit = NULL,
                       upper.limit = NULL,
                       num_cores = 1) {
-  .check_input(X,W,Y)
-  X = data.frame(t(t(X)-colMeans(X)))
   if (!(test %in% c("ridge", "glmnet", "full", "marginal"))) {
     abort('Error: test must be either "ridge", "glmnet", "full" or "marginal"')
+  }
+  .check_input(X,W,Y)
+  X = data.frame(t(t(X)-colMeans(X)))
+  if (remove.unwanted.variation) {
+    Y = .remove_unwanted_variation(X, W, Y)
   }
   switch(test, "ridge" = {
     .full_assoc(X, W, Y, test,
@@ -60,6 +64,19 @@ omicassoc = function (X, W, Y, test,
     }
   }
   return(0)
+}
+
+.remove_unwanted_variation = function (X, W, Y) {
+  inform("Removing unwanted variation ...")
+  X1W = do.call(cbind, apply(W, 2, function(W_h) {cbind(X, 1) * W_h}))
+  X1W = as.matrix(X1W)
+  YadjX1W = t(lm(y ~ 0 + x,
+                 data = list(y = t(Y), x = X1W))$residuals)
+  s = svd(YadjX1W)
+  # regard top 10 principal components as unwanted variation
+  s$d[11:length(s$d)] = 0
+  D = diag(s$d)
+  return(Y - s$u %*% D %*% t(s$v))
 }
 
 .marginal_assoc = function (X, W, Y, num_cores) {
