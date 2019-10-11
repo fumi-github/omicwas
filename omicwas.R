@@ -1,5 +1,6 @@
 # CRAN packages
 library(broom)
+library(data.table)
 library(dplyr)
 library(glmnet)
 library(matrixStats)
@@ -9,16 +10,16 @@ library(rlang)
 library(parallel)
 
 
-# num_cores is irrelevant for full, marginal
+# Full and marginal tests are run in serial, thus num_cores is ignored.
 ctassoc = function (X, W, Y, test,
-                      alpha = 0,
-                      lower.limit = NULL,
-                      upper.limit = NULL,
-                      num_cores = 1) {
+                    alpha = 0,
+                    lower.limit = NULL,
+                    upper.limit = NULL,
+                    num_cores = 1) {
   if (!(test %in% c("ridge", "glmnet", "full", "marginal"))) {
     abort('Error: test must be either "ridge", "glmnet", "full" or "marginal"')
   }
-  .check_input(X,W,Y)
+  .check_input(X, W, Y)
   X = data.frame(t(t(X)-colMeans(X)))
   switch(test, "ridge" = {
     .full_assoc(X, W, Y, test,
@@ -39,7 +40,7 @@ ctassoc = function (X, W, Y, test,
 }
 
 ctRUV = function (X, W, Y) {
-  .check_input(X,W,Y)
+  .check_input(X, W, Y)
   X = data.frame(t(t(X)-colMeans(X)))
   X1W = do.call(cbind, apply(W, 2, function(W_h) {cbind(X, 1) * W_h}))
   X1W = as.matrix(X1W)
@@ -47,13 +48,13 @@ ctRUV = function (X, W, Y) {
                  data = list(y = t(Y), x = X1W))$residuals)
   s = svd(YadjX1W)
   rm(YadjX1W)
-  gc(); gc()
+  gc()
   # regard top 10 principal components as unwanted variation
   s$d[11:length(s$d)] = 0
   D = diag(s$d)
   Y = Y - s$u %*% D %*% t(s$v)
   rm(s, D)
-  gc(); gc()
+  gc()
   return(Y)
 }
 
@@ -87,7 +88,7 @@ ctRUV = function (X, W, Y) {
 .marginal_assoc = function (X, W, Y, num_cores) {
   inform("Linear regression, for each cell type")
   Y = t(Y)
-  # Avoid parApply, because each process stores Y in memory
+  # Avoid parApply, because each process stores Y in memory.
   result = apply(
     W,
     2,
@@ -123,13 +124,13 @@ ctRUV = function (X, W, Y) {
   # Probes with different bound (eg. methylation and gene expression)
   # should not be mixed in one dataset.
 
-  cl = makeCluster(num_cores, outfile="R.parallel.log")
+  cl = makeCluster(num_cores)
   on.exit(stopCluster(cl))
 
   Xoriginal = X
   Woriginal = W
 
-  # Maintain irreversibility when combining colnames by "." to XW, X1W
+  # maintain irreversibility when combining colnames by "." to XW, X1W
   colnames(X) = gsub("\\.", "_", colnames(X))
   colnames(W) = gsub("\\.", "_", colnames(W))
   XW = do.call(cbind, apply(W, 2, function(W_h) {X * W_h}))
@@ -137,7 +138,7 @@ ctRUV = function (X, W, Y) {
   X1W = do.call(cbind, apply(W, 2, function(W_h) {cbind(X, 1) * W_h}))
   X1W = as.matrix(X1W)
 
-  switch(test, "full" = { # ------------------------------
+  switch(test, "full" = { # --------------------------------
     inform("Linear regression ...")
     result = broom::tidy(lm(y ~ 0 + x,
                             data = list(y = t(Y), x = X1W)))
@@ -146,6 +147,8 @@ ctRUV = function (X, W, Y) {
     
   }, "ridge" = { # -----------------------------------------
     inform("Ridge regression ...")
+    # First regress out the intercepts,
+    # because all variables are regularized in the ridge package.
     tYadjXW = lm(y ~ 0 + x,
                 data = list(y = t(Y), x = as.matrix(W)))$residuals
     result =
@@ -156,18 +159,19 @@ ctRUV = function (X, W, Y) {
         function (y, XW) {
           mod = ridge::linearRidge(y ~ 0 + x,
                                    data = list(y = y, x = XW))
-          # use summary.ridgeLinear to get unscaled coefficients
-          # coefficients in mod$coef or pvals(mod)$coef are scaled
+          # Use summary.ridgeLinear to get unscaled coefficients,
+          # because coefficients in mod$coef or pvals(mod)$coef are scaled.
           fun = getFromNamespace("summary.ridgeLinear", "ridge")
           res = data.frame(fun(mod)$summaries[[mod$chosen.nPCs]]$coefficients)
           res$celltypeterm = sub("^x", "", rownames(res))
           rownames(res) = NULL
-          res = res[, c("Estimate", "t.value..scaled.", "Pr...t..", "celltypeterm")]
+          res = res[, c("Estimate", "t.value..scaled.", "Pr...t..",
+                        "celltypeterm")]
           colnames(res)[1:3] = c("estimate", "statistic", "p.value")
           return(res) },
         XW)
     rm(tYadjXW)
-    gc(); gc()
+    gc()
     result = dplyr::as_tibble(data.table::rbindlist(result, idcol="response"))
     result$statistic = sign(result$estimate) * result$statistic
 
@@ -232,7 +236,7 @@ ctRUV = function (X, W, Y) {
         l = ly[1]
         y = ly[-1]
         set.seed(123)
-        ridge.mod = glmnet::glmnet(
+        mod = glmnet::glmnet(
           x = X1W,
           y = y,
           alpha = alpha,
@@ -241,7 +245,7 @@ ctRUV = function (X, W, Y) {
           penalty.factor = penalty.factor,
           lower.limits = lower.limits,
           upper.limits = upper.limits)
-        return(ridge.mod$beta[, 1]) },
+        return(mod$beta[, 1]) },
       X1W, alpha, penalty.factor, lower.limits, upper.limits)
   result = data.frame(t(result))
   result$response = rownames(result)
@@ -252,10 +256,10 @@ ctRUV = function (X, W, Y) {
     values_to = "estimate")
   
   inform("Computing statistical significance ...")
-  # Raw Sds for constants, residual Sds for other terms
   YSd = colSds(lm(y ~ 0 + x,
                   data = list(y = t(Y), x = as.matrix(W))
                   )$residuals)
+  # NOT USED: raw Sds for constants, residual Sds for other terms
   # constantindiceslong = 
   #   rep(0:(nrow(Y)-1), each=length(constantindices)) * ncol(X1W) +
   #     constantindices
