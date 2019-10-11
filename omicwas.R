@@ -7,7 +7,7 @@ library(ridge)
 library(rlang)
 
 # num_cores is irrelevant for full, marginal
-omicassoc = function (X, W, Y, test,
+ctassoc = function (X, W, Y, test,
                       remove.unwanted.variation = TRUE,
                       alpha = 0,
                       lower.limit = NULL,
