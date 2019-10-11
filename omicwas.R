@@ -1,5 +1,4 @@
 library(broom)
-library(data.table)
 library(dplyr)
 library(glmnet)
 library(matrixStats)
@@ -7,6 +6,7 @@ library(parallel)
 library(ridge)
 library(rlang)
 
+# num_cores is irrelevant for full, marginal
 omicassoc = function (X, W, Y, test,
                       remove.unwanted.variation = TRUE,
                       alpha = 0,
@@ -73,22 +73,26 @@ omicassoc = function (X, W, Y, test,
   YadjX1W = t(lm(y ~ 0 + x,
                  data = list(y = t(Y), x = X1W))$residuals)
   s = svd(YadjX1W)
+  rm(YadjX1W)
+  gc(); gc()
   # regard top 10 principal components as unwanted variation
   s$d[11:length(s$d)] = 0
   D = diag(s$d)
-  return(Y - s$u %*% D %*% t(s$v))
+  Y = Y - s$u %*% D %*% t(s$v)
+  rm(s, D)
+  gc(); gc()
+  return(Y)
 }
 
 .marginal_assoc = function (X, W, Y, num_cores) {
-  cl = makeCluster(num_cores)
-  on.exit(stopCluster(cl))
-  
+  inform("Linear regression, for each cell type")
   Y = t(Y)
-  result = parApply(
-    cl,
+  # Avoid parApply, because each process stores Y in memory
+  result = apply(
     W,
     2,
     function (W_h, X, W, Y) {
+      cat(".")
       # DEPRECATED; can be heavily biased
       # Xweighted = cbind(X, 1) * W_h
       # res = broom::tidy(lm(y ~ x,
@@ -99,6 +103,7 @@ omicassoc = function (X, W, Y, test,
       res$term = sub("^x", "", res$term)
       return(res) },
     X, W, Y)
+  cat("\n")
   names(result) = colnames(W)
   return(result)
 }
@@ -118,7 +123,7 @@ omicassoc = function (X, W, Y, test,
   # Probes with different bound (eg. methylation and gene expression)
   # should not be mixed in one dataset.
 
-  cl = makeCluster(num_cores)
+  cl = makeCluster(num_cores, outfile="R.parallel.log")
   on.exit(stopCluster(cl))
 
   Xoriginal = X
@@ -159,6 +164,8 @@ omicassoc = function (X, W, Y, test,
           colnames(res)[1:3] = c("estimate", "statistic", "p.value")
           return(res) },
         XW)
+    rm(tYadjXW)
+    gc(); gc()
     result = dplyr::as_tibble(data.table::rbindlist(result, idcol="response"))
     result$statistic = sign(result$estimate) * result$statistic
 
