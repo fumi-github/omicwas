@@ -11,6 +11,9 @@ library(parallel)
 
 
 # Full and marginal tests are run in serial, thus num_cores is ignored.
+# Value is a list
+# the element "coefficients" gives the estimate, statistic, p.value
+# in tibble format
 ctassoc = function (X, W, Y, test,
                     alpha = 0,
                     lower.limit = NULL,
@@ -102,7 +105,7 @@ ctRUV = function (X, W, Y) {
       res = broom::tidy(lm(y ~ 0 + x,
                            data = list(y = Y, x = as.matrix(Xweighted))))
       res$term = sub("^x", "", res$term)
-      return(res) },
+      return(list(coefficients=res)) },
     X, W, Y)
   cat("\n")
   names(result) = colnames(W)
@@ -292,5 +295,5 @@ ctRUV = function (X, W, Y) {
   result = dplyr::select(
     result,
     c(response, celltype, term, estimate, statistic, p.value))
-  return(result)
+  return(list(coefficients=result))
 }
