@@ -156,6 +156,8 @@ ctRUV = function (X, W, Y) {
         function (y, XW) {
           mod = ridge::linearRidge(y ~ 0 + x,
                                    data = list(y = y, x = XW))
+          # use summary.ridgeLinear to get unscaled coefficients
+          # coefficients in mod$coef or pvals(mod)$coef are scaled
           fun = getFromNamespace("summary.ridgeLinear", "ridge")
           res = data.frame(fun(mod)$summaries[[mod$chosen.nPCs]]$coefficients)
           res$celltypeterm = sub("^x", "", rownames(res))
