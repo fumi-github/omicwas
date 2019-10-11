@@ -1,10 +1,13 @@
+# CRAN packages
 library(broom)
 library(dplyr)
 library(glmnet)
 library(matrixStats)
-library(parallel)
 library(ridge)
 library(rlang)
+# already included in R
+library(parallel)
+
 
 # num_cores is irrelevant for full, marginal
 ctassoc = function (X, W, Y, test,
