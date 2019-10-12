@@ -334,8 +334,8 @@ ctRUV = function (X, W, Y) {
   batchsize = num.cores * chunk.size
   nbatches = ceiling(dim(X)[MARGIN]/batchsize)
   result = list()
+  pb = txtProgressBar(max = nbatches, style = 3)
   for (i in 0:(nbatches - 1)) {
-    print(".")
     result = c(
       result,
       parApply(
@@ -350,6 +350,8 @@ ctRUV = function (X, W, Y) {
         MARGIN = MARGIN,
         FUN = FUN,
         ...))
+    setTxtProgressBar(pb, i + 1)
   }
+  close(pb)
   return(result)
 }
