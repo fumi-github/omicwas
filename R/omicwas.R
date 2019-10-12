@@ -352,6 +352,7 @@ ctRUV = function (X, W, Y) {
 }
 
 .serialparApply = function (cl, num.cores, chunk.size, X, MARGIN, FUN, ...) {
+  gc()
   batchsize = num.cores * chunk.size
   nbatches = ceiling(dim(X)[MARGIN]/batchsize)
   result = list()
@@ -372,6 +373,7 @@ ctRUV = function (X, W, Y) {
         FUN = FUN,
         ...))
     setTxtProgressBar(pb, i + 1)
+    gc()
   }
   close(pb)
   return(result)
