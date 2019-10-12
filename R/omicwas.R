@@ -33,7 +33,8 @@ ctassoc = function (X, W, Y, test,
                     alpha = 0,
                     lower.limit = NULL,
                     upper.limit = NULL,
-                    num_cores = 1) {
+                    num_cores = 1,
+                    chunk.size = 100) {
   if (!(test %in% c("ridge", "glmnet", "full", "marginal"))) {
     abort('Error: test must be either "ridge", "glmnet", "full" or "marginal"')
   }
@@ -41,19 +42,21 @@ ctassoc = function (X, W, Y, test,
   X = data.frame(t(t(X)-colMeans(X)))
   switch(test, "ridge" = {
     .full_assoc(X, W, Y, test,
-                num_cores = num_cores)
+                num_cores = num_cores,
+                chunk.size = chunk.size)
   }, "glmnet" = {
     .full_assoc(X, W, Y, test,
                 alpha = alpha,
                 lower.limit = lower.limit,
                 upper.limit = upper.limit,
-                num_cores = num_cores)
+                num_cores = num_cores,
+                chunk.size = chunk.size)
   }, "full" = {
     .full_assoc(X, W, Y, test,
-                num_cores = num_cores)
+                num_cores = num_cores,
+                chunk.size = chunk.size)
   }, "marginal" = {
-    .marginal_assoc(X, W, Y,
-                    num_cores = num_cores)
+    .marginal_assoc(X, W, Y)
   })
 }
 
@@ -103,7 +106,7 @@ ctRUV = function (X, W, Y) {
   return(0)
 }
 
-.marginal_assoc = function (X, W, Y, num_cores) {
+.marginal_assoc = function (X, W, Y) {
   inform("Linear regression, for each cell type")
   Y = t(Y)
   # Avoid parApply, because each process stores Y in memory.
@@ -131,7 +134,8 @@ ctRUV = function (X, W, Y) {
                         alpha,
                         lower.limit,
                         upper.limit,
-                        num_cores) {
+                        num_cores,
+                        chunk.size) {
   # alpha: 0 for Ridge regression; 1 for Lasso; inbetween for elastic net
   # lower.limit, upper.limit: lowest and highest expression level
   # (in any cell type).
@@ -170,8 +174,10 @@ ctRUV = function (X, W, Y) {
     tYadjXW = lm(y ~ 0 + x,
                 data = list(y = t(Y), x = as.matrix(W)))$residuals
     result =
-      parApply(
-        cl,
+      .serialparApply(
+        cl = cl,
+        num_cores = num_cores,
+        chunk.size = chunk.size,
         tYadjXW,
         2,
         function (y, XW) {
@@ -322,4 +328,12 @@ ctRUV = function (X, W, Y) {
     result,
     c(response, celltype, term, estimate, statistic, p.value))
   return(list(coefficients=result))
+}
+
+.serialparApply = function (cl, num_cores, chunk.size, X, MARGIN, FUN, ...) {
+  parApply(cl = cl,
+           X = X,
+           MARGIN = MARGIN,
+           FUN = FUN,
+           ...)
 }
