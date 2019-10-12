@@ -1,8 +1,26 @@
 #' Cell-Type-Specific Association Testing
 #'
-#' @param X phenotypes (and covariates); samples x phenotype(s)
-#' @param W proportion of cell types; samples x cell types
-#' @param Y bulk omics measurements; probes x samples
+#' @param X Matrix (or vector) of phenotypes (and covariates); samples x phenotype(s).
+#' @param W Matrix of proportion of cell types; samples x cell types.
+#' @param Y Matrix of bulk omics measurements; probes x samples.
+#' X, W, Y should be numeric.
+#' @param test Statistical test to apply; either ridge, full or marginal.
+#' @param num.cores Number of CPU cores to use.
+#' Full and marginal tests are run in serial, thus num.cores is ignored.
+#' @param chunk.size The size of job for a CPU core in one batch.
+#' If you have many cores but limited memory, and there is a memory failure,
+#' decrease this parameter.
+#' @return A list with one element, which is named "coefficients".
+#' The element gives the estimate, statistic, p.value in tibble format.
+#' @seealso ctRUV
+#' @examples
+#' data(GSE42861small)
+#' X = GSE42861small$X
+#' Y = GSE42861small$Y
+#' W = GSE42861small$W
+#' Y = ctRUV(X, W, Y)
+#' result = ctassoc(X, W, Y)
+#' result$coefficients
 #'
 #' @importFrom broom tidy
 #' @importFrom data.table rbindlist
@@ -24,19 +42,14 @@
 #' @importFrom R.utils withTimeout
 #' @importFrom tidyr pivot_longer
 #' @export
-
-# Full and marginal tests are run in serial, thus num.cores is ignored.
-# Value is a list
-# the element "coefficients" gives the estimate, statistic, p.value
-# in tibble format
-ctassoc = function (X, W, Y, test,
-                    alpha = 0,
-                    lower.limit = NULL,
-                    upper.limit = NULL,
+ctassoc = function (X, W, Y, test = "ridge",
+                    # alpha = 0,
+                    # lower.limit = NULL,
+                    # upper.limit = NULL,
                     num.cores = 1,
                     chunk.size = 100) {
-  if (!(test %in% c("ridge", "glmnet", "full", "marginal"))) {
-    abort('Error: test must be either "ridge", "glmnet", "full" or "marginal"')
+  if (!(test %in% c("ridge", "full", "marginal"))) {
+    abort('Error: test must be either "glmnet", "full" or "marginal"')
   }
   .check_input(X, W, Y)
   X = data.frame(t(t(X)-colMeans(X)))
@@ -44,13 +57,13 @@ ctassoc = function (X, W, Y, test,
     .full_assoc(X, W, Y, test,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
-  }, "glmnet" = {
-    .full_assoc(X, W, Y, test,
-                alpha = alpha,
-                lower.limit = lower.limit,
-                upper.limit = upper.limit,
-                num.cores = num.cores,
-                chunk.size = chunk.size)
+  # }, "glmnet" = {
+  #   .full_assoc(X, W, Y, test,
+  #               alpha = alpha,
+  #               lower.limit = lower.limit,
+  #               upper.limit = upper.limit,
+  #               num.cores = num.cores,
+  #               chunk.size = chunk.size)
   }, "full" = {
     .full_assoc(X, W, Y, test,
                 num.cores = num.cores,
@@ -60,6 +73,18 @@ ctassoc = function (X, W, Y, test,
   })
 }
 
+#' Remove Unwanted Variations prior to applying ctassoc
+#'
+#' @param X Matrix (or vector) of phenotypes (and covariates); samples x phenotype(s).
+#' @param W Matrix of proportion of cell types; samples x cell types.
+#' @param Y Matrix of bulk omics measurements; probes x samples.
+#' X, W, Y should be numeric.
+#' @return Y adjusted for the unwanted variations.
+#' First, linear regression of Y for the full model is computed.
+#' The first ten principal components of the residual is defined as
+#'  the unwanted variations, and subtracted from Y.
+#' @seealso ctassoc
+#' @export
 ctRUV = function (X, W, Y) {
   .check_input(X, W, Y)
   X = data.frame(t(t(X)-colMeans(X)))
@@ -80,10 +105,6 @@ ctRUV = function (X, W, Y) {
 }
 
 .check_input = function (X, W, Y) {
-  # X: phenotypes (and covariates); samples x phenotype(s)
-  # W: proportion of cell types; samples x cell types
-  # Y: bulk omics measurements; probes x samples
-  # X, W, Y should be numeric
   if (!is.matrix(Y)) {
     abort("Error: Y must be a matrix.")
   }
