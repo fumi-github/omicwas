@@ -331,9 +331,25 @@ ctRUV = function (X, W, Y) {
 }
 
 .serialparApply = function (cl, num.cores, chunk.size, X, MARGIN, FUN, ...) {
-  parApply(cl = cl,
-           X = X,
-           MARGIN = MARGIN,
-           FUN = FUN,
-           ...)
+  batchsize = num.cores * chunk.size
+  nbatches = ceiling(dim(X)[MARGIN]/batchsize)
+  result = list()
+  for (i in 0:(nbatches - 1)) {
+    print(".")
+    result = c(
+      result,
+      parApply(
+        cl = cl,
+        X = if (MARGIN == 1) { # only works for matrix
+          X[seq(1 + i * batchsize,
+                min((i+1) * batchsize, nrow(X))), ]
+        } else {
+          X[, seq(1 + i * batchsize,
+                  min((i+1) * batchsize, ncol(X)))]
+        },
+        MARGIN = MARGIN,
+        FUN = FUN,
+        ...))
+  }
+  return(result)
 }
