@@ -25,7 +25,7 @@
 #' @importFrom tidyr pivot_longer
 #' @export
 
-# Full and marginal tests are run in serial, thus num_cores is ignored.
+# Full and marginal tests are run in serial, thus num.cores is ignored.
 # Value is a list
 # the element "coefficients" gives the estimate, statistic, p.value
 # in tibble format
@@ -33,7 +33,7 @@ ctassoc = function (X, W, Y, test,
                     alpha = 0,
                     lower.limit = NULL,
                     upper.limit = NULL,
-                    num_cores = 1,
+                    num.cores = 1,
                     chunk.size = 100) {
   if (!(test %in% c("ridge", "glmnet", "full", "marginal"))) {
     abort('Error: test must be either "ridge", "glmnet", "full" or "marginal"')
@@ -42,18 +42,18 @@ ctassoc = function (X, W, Y, test,
   X = data.frame(t(t(X)-colMeans(X)))
   switch(test, "ridge" = {
     .full_assoc(X, W, Y, test,
-                num_cores = num_cores,
+                num.cores = num.cores,
                 chunk.size = chunk.size)
   }, "glmnet" = {
     .full_assoc(X, W, Y, test,
                 alpha = alpha,
                 lower.limit = lower.limit,
                 upper.limit = upper.limit,
-                num_cores = num_cores,
+                num.cores = num.cores,
                 chunk.size = chunk.size)
   }, "full" = {
     .full_assoc(X, W, Y, test,
-                num_cores = num_cores,
+                num.cores = num.cores,
                 chunk.size = chunk.size)
   }, "marginal" = {
     .marginal_assoc(X, W, Y)
@@ -134,7 +134,7 @@ ctRUV = function (X, W, Y) {
                         alpha,
                         lower.limit,
                         upper.limit,
-                        num_cores,
+                        num.cores,
                         chunk.size) {
   # alpha: 0 for Ridge regression; 1 for Lasso; inbetween for elastic net
   # lower.limit, upper.limit: lowest and highest expression level
@@ -146,7 +146,7 @@ ctRUV = function (X, W, Y) {
   # Probes with different bound (eg. methylation and gene expression)
   # should not be mixed in one dataset.
 
-  cl = makeCluster(num_cores)
+  cl = makeCluster(num.cores)
   on.exit(stopCluster(cl))
 
   Xoriginal = X
@@ -176,7 +176,7 @@ ctRUV = function (X, W, Y) {
     result =
       .serialparApply(
         cl = cl,
-        num_cores = num_cores,
+        num.cores = num.cores,
         chunk.size = chunk.size,
         tYadjXW,
         2,
@@ -330,7 +330,7 @@ ctRUV = function (X, W, Y) {
   return(list(coefficients=result))
 }
 
-.serialparApply = function (cl, num_cores, chunk.size, X, MARGIN, FUN, ...) {
+.serialparApply = function (cl, num.cores, chunk.size, X, MARGIN, FUN, ...) {
   parApply(cl = cl,
            X = X,
            MARGIN = MARGIN,
