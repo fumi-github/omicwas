@@ -1,14 +1,29 @@
-# CRAN packages
-library(broom)
-library(data.table)
-library(dplyr)
-library(glmnet)
-library(matrixStats)
-library(ridge)
-library(rlang)
-# already included in R
-library(parallel)
-
+#' Cell-Type-Specific Association Testing
+#'
+#' @param X phenotypes (and covariates); samples x phenotype(s)
+#' @param W proportion of cell types; samples x cell types
+#' @param Y bulk omics measurements; probes x samples
+#'
+#' @importFrom broom tidy
+#' @importFrom data.table rbindlist
+#' @importFrom dplyr as_tibble
+#' @importFrom dplyr left_join
+#' @importFrom dplyr mutate
+#' @importFrom dplyr rename
+#' @importFrom dplyr select
+#' @importFrom glmnet cv.glmnet
+#' @importFrom glmnet glmnet
+#' @importFrom magrittr %>%
+#' @importFrom matrixStats colSds
+#' @importFrom parallel makeCluster
+#' @importFrom parallel parApply
+#' @importFrom parallel stopCluster
+#' @importFrom ridge linearRidge
+#' @importFrom rlang abort
+#' @importFrom rlang inform
+#' @importFrom R.utils withTimeout
+#' @importFrom tidyr pivot_longer
+#' @export
 
 # Full and marginal tests are run in serial, thus num_cores is ignored.
 # Value is a list
@@ -147,7 +162,7 @@ ctRUV = function (X, W, Y) {
                             data = list(y = t(Y), x = X1W)))
     result$term = sub("^x", "", result$term)
     result = dplyr::rename(result, celltypeterm = term)
-    
+
   }, "ridge" = { # -----------------------------------------
     inform("Ridge regression ...")
     # First regress out the intercepts,
@@ -160,18 +175,29 @@ ctRUV = function (X, W, Y) {
         tYadjXW,
         2,
         function (y, XW) {
-          mod = ridge::linearRidge(y ~ 0 + x,
-                                   data = list(y = y, x = XW))
-          # Use summary.ridgeLinear to get unscaled coefficients,
-          # because coefficients in mod$coef or pvals(mod)$coef are scaled.
-          fun = getFromNamespace("summary.ridgeLinear", "ridge")
-          res = data.frame(fun(mod)$summaries[[mod$chosen.nPCs]]$coefficients)
-          res$celltypeterm = sub("^x", "", rownames(res))
-          rownames(res) = NULL
-          res = res[, c("Estimate", "t.value..scaled.", "Pr...t..",
-                        "celltypeterm")]
-          colnames(res)[1:3] = c("estimate", "statistic", "p.value")
-          return(res) },
+          # ridge occaisionaly takes very long time
+          tryCatch(
+            expr = {
+              R.utils::withTimeout(
+                {mod = ridge::linearRidge(y ~ 0 + x,
+                                          data = list(y = y, x = XW))
+                # Use summary.ridgeLinear to get unscaled coefficients,
+                # because coefficients in mod$coef or pvals(mod)$coef are scaled.
+                fun = getFromNamespace("summary.ridgeLinear", "ridge")
+                res = data.frame(fun(mod)$summaries[[mod$chosen.nPCs]]$coefficients)
+                res$celltypeterm = sub("^x", "", rownames(res))
+                rownames(res) = NULL
+                res = res[, c("Estimate", "t.value..scaled.", "Pr...t..",
+                              "celltypeterm")]
+                colnames(res)[1:3] = c("estimate", "statistic", "p.value")
+                return(res)
+                },
+                timeout = 300) },
+            TimeoutException = function (ex)
+            { data.frame(estimate     = rep(NA, ncol(XW)),
+                         statistic    = rep(NA, ncol(XW)),
+                         p.value      = rep(NA, ncol(XW)),
+                         celltypeterm = colnames(XW)) }) },
         XW)
     rm(tYadjXW)
     gc()
@@ -195,7 +221,7 @@ ctRUV = function (X, W, Y) {
   lower.limits[constantindices] = lower.limit
   upper.limits = rep(Inf, ncol(X1W))
   upper.limits[constantindices] = upper.limit
-  
+
   inform("Fitting hyperparameter ...")
   samplingsize = 500
   if (nrow(Y) < samplingsize) {
@@ -228,7 +254,7 @@ ctRUV = function (X, W, Y) {
     opt_lambda_list = rep(quantile(opt_lambda_list_small, 0.25), nrow(Y))
     names(opt_lambda_list) = NULL
   }
-  
+
   inform("Regularized regression ...")
   result =
     parApply(
@@ -257,13 +283,13 @@ ctRUV = function (X, W, Y) {
     cols = -response,
     names_to = "celltypeterm",
     values_to = "estimate")
-  
+
   inform("Computing statistical significance ...")
   YSd = colSds(lm(y ~ 0 + x,
                   data = list(y = t(Y), x = as.matrix(W))
                   )$residuals)
   # NOT USED: raw Sds for constants, residual Sds for other terms
-  # constantindiceslong = 
+  # constantindiceslong =
   #   rep(0:(nrow(Y)-1), each=length(constantindices)) * ncol(X1W) +
   #     constantindices
   # YSd[constantindiceslong] = colSds(Y)[constantindiceslong]
