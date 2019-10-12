@@ -5,4 +5,4 @@ To install in R:
 
 install.packages("devtools")
 
-devtools::install_github(fumi-github/omicwas)
+devtools::install_github("fumi-github/omicwas")
