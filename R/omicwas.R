@@ -193,40 +193,57 @@ ctRUV = function (X, W, Y) {
     # First regress out the intercepts,
     # because all variables are regularized in the ridge package.
     tYadjXW = lm(y ~ 0 + x,
-                data = list(y = t(Y), x = as.matrix(W)))$residuals
-    result =
-      .serialparApply(
-        cl = cl,
-        num.cores = num.cores,
-        chunk.size = chunk.size,
-        tYadjXW,
-        2,
-        function (y, XW) {
-          # ridge occaisionaly takes very long time
-          tryCatch(
-            expr = {
-              R.utils::withTimeout(
-                {mod = ridge::linearRidge(y ~ 0 + x,
-                                          data = list(y = y, x = XW))
-                # Use summary.ridgeLinear to get unscaled coefficients,
-                # because coefficients in mod$coef or pvals(mod)$coef are scaled.
-                fun = getFromNamespace("summary.ridgeLinear", "ridge")
-                res = data.frame(fun(mod)$summaries[[mod$chosen.nPCs]]$coefficients)
-                res$celltypeterm = sub("^x", "", rownames(res))
-                rownames(res) = NULL
-                res = res[, c("Estimate", "t.value..scaled.", "Pr...t..",
-                              "celltypeterm")]
-                colnames(res)[1:3] = c("estimate", "statistic", "p.value")
-                return(res)
-                },
-                timeout = 300) },
-            TimeoutException = function (ex)
-            { data.frame(estimate     = rep(NA, ncol(XW)),
-                         statistic    = rep(NA, ncol(XW)),
-                         p.value      = rep(NA, ncol(XW)),
-                         celltypeterm = colnames(XW)) }) },
-        XW)
+                 data = list(y = t(Y), x = as.matrix(W)))$residuals
+    rm(Y)
+    gc()
+    batchsize = num.cores * chunk.size
+    totalsize = ncol(tYadjXW)
+    nbatches = ceiling(totalsize/batchsize)
+    tYadjXWff = ff::ff(
+      tYadjXW,
+      dim = dim(tYadjXW),
+      dimnames = dimnames(tYadjXW))
     rm(tYadjXW)
+    gc()
+    result = list()
+    pb = txtProgressBar(max = nbatches, style = 3)
+    for (i in 0:(nbatches - 1)) {
+      result = c(
+        result,
+        parApply(
+          cl = cl,
+          tYadjXWff[, seq(1 + i * batchsize,
+                          min((i+1) * batchsize, totalsize))],
+          2,
+          function (y, XW) {
+            # ridge occaisionaly takes very long time
+            tryCatch(
+              expr = {
+                R.utils::withTimeout(
+                  {mod = ridge::linearRidge(y ~ 0 + x,
+                                            data = list(y = y, x = XW))
+                  # Use summary.ridgeLinear to get unscaled coefficients,
+                  # because coefficients in mod$coef or pvals(mod)$coef are scaled.
+                  fun = getFromNamespace("summary.ridgeLinear", "ridge")
+                  res = data.frame(fun(mod)$summaries[[mod$chosen.nPCs]]$coefficients)
+                  res$celltypeterm = sub("^x", "", rownames(res))
+                  rownames(res) = NULL
+                  res = res[, c("Estimate", "t.value..scaled.", "Pr...t..",
+                                "celltypeterm")]
+                  colnames(res)[1:3] = c("estimate", "statistic", "p.value")
+                  return(res)
+                  },
+                  timeout = 300) },
+              TimeoutException = function (ex) {
+                data.frame(estimate     = rep(NA, ncol(XW)),
+                           statistic    = rep(NA, ncol(XW)),
+                           p.value      = rep(NA, ncol(XW)),
+                           celltypeterm = colnames(XW)) }) },
+          XW))
+      setTxtProgressBar(pb, i + 1)
+    }
+    close(pb)
+    delete(tYadjXWff)
     gc()
     result = dplyr::as_tibble(data.table::rbindlist(result, idcol="response"))
     result$statistic = sign(result$estimate) * result$statistic
@@ -349,32 +366,4 @@ ctRUV = function (X, W, Y) {
     result,
     c(response, celltype, term, estimate, statistic, p.value))
   return(list(coefficients=result))
-}
-
-.serialparApply = function (cl, num.cores, chunk.size, X, MARGIN, FUN, ...) {
-  gc()
-  batchsize = num.cores * chunk.size
-  nbatches = ceiling(dim(X)[MARGIN]/batchsize)
-  result = list()
-  pb = txtProgressBar(max = nbatches, style = 3)
-  for (i in 0:(nbatches - 1)) {
-    result = c(
-      result,
-      parApply(
-        cl = cl,
-        X = if (MARGIN == 1) { # only works for matrix
-          X[seq(1 + i * batchsize,
-                min((i+1) * batchsize, nrow(X))), ]
-        } else {
-          X[, seq(1 + i * batchsize,
-                  min((i+1) * batchsize, ncol(X)))]
-        },
-        MARGIN = MARGIN,
-        FUN = FUN,
-        ...))
-    setTxtProgressBar(pb, i + 1)
-    gc()
-  }
-  close(pb)
-  return(result)
 }
