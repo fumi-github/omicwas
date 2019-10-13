@@ -9,7 +9,7 @@
 #' Full and marginal tests are run in serial, thus num.cores is ignored.
 #' @param chunk.size The size of job for a CPU core in one batch.
 #' If you have many cores but limited memory, and there is a memory failure,
-#' decrease this parameter.
+#' decrease num.cores and/or chunk.size.
 #' @return A list with one element, which is named "coefficients".
 #' The element gives the estimate, statistic, p.value in tibble format.
 #' @seealso ctRUV
