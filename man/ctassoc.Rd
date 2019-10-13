@@ -4,7 +4,7 @@
 \alias{ctassoc}
 \title{Cell-Type-Specific Association Testing}
 \usage{
-ctassoc(X, W, Y, test = "ridge", num.cores = 1, chunk.size = 100)
+ctassoc(X, W, Y, test = "ridge", num.cores = 1, chunk.size = 1000)
 }
 \arguments{
 \item{X}{Matrix (or vector) of phenotypes (and covariates); samples x phenotype(s).}

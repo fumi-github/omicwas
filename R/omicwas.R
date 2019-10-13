@@ -47,7 +47,7 @@ ctassoc = function (X, W, Y, test = "ridge",
                     # lower.limit = NULL,
                     # upper.limit = NULL,
                     num.cores = 1,
-                    chunk.size = 100) {
+                    chunk.size = 1000) {
   if (!(test %in% c("ridge", "full", "marginal"))) {
     abort('Error: test must be either "glmnet", "full" or "marginal"')
   }
@@ -243,7 +243,7 @@ ctRUV = function (X, W, Y) {
       setTxtProgressBar(pb, i + 1)
     }
     close(pb)
-    delete(tYadjXWff)
+    ff::delete(tYadjXWff)
     gc()
     result = dplyr::as_tibble(data.table::rbindlist(result, idcol="response"))
     result$statistic = sign(result$estimate) * result$statistic
