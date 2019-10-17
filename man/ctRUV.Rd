@@ -16,12 +16,17 @@ X, W, Y should be numeric.}
 }
 \value{
 Y adjusted for the unwanted variations.
-First, linear regression of Y for the full model is computed.
-The first ten principal components of the residual is defined as
- the unwanted variations, and subtracted from Y.
 }
 \description{
 Remove Unwanted Variations prior to applying ctassoc
+}
+\details{
+First, for each CpG site, the full linear model of the \code{ctassoc}
+function is fitted, and the residual is computed.
+For the residuals over all CpG sites, the principal components (PCs)
+are computed.
+The top ten PCs are regarded as the unwanted variations,
+and subtracted from \code{Y}.
 }
 \seealso{
 ctassoc

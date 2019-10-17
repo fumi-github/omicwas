@@ -1,10 +1,48 @@
 #' Cell-Type-Specific Association Testing
 #'
+#' Cell-Type-Specific Association Testing
+#'
+#' Let the indexes be
+#' cell type \eqn{h}, sample \eqn{i}, CpG site \eqn{j},
+#' and phenotype (disease state and covariates, such as age, sex) \eqn{k}.
+#' There are three input data, phenotype \eqn{X_i_k},
+#' cell type proportion \eqn{W_i_h} and
+#' methylation level \eqn{Y_j_i}.
+#' For each tissue sample, the cell type proportion \eqn{W_i_h}
+#' is the proportion of each cell type in the bulk tissue,
+#' which is measured or imputed beforehand.
+#' The tissue-level methylation level \eqn{Y_j_i} is measured and provided as input.
+#'
+#' The cell-type-specific methylation level \eqn{Z_h_j_i} is not observed
+#' and is treated as a hidden variable.
+#' The parameter we estimate is
+#' the cell-type-specific effect of phenotype \eqn{\beta_h_j_k},
+#' and we also fit the cell-type-specific basal methylation level \eqn{\mu_h_j}.
+#'
+#' We assume normal distribution for the cell-type-specific methylation level,
+#' \deqn{Z_h_j_i ~ N(\mu_h_j + \sum_k \beta_h_j_k * X_i_k, \sigma^2_h_j).}
+#' Since the bulk tissue methylation level is the sum weighted by \eqn{W_i_h},
+#' \deqn{Y_j_i ~ N(\sum_h W_i_h {\mu_h_j + \sum_k \beta_h_j_k * X_i_k},
+#'       \tau^2_j + \sum_h W_i_h * \sigma^2_h_j).}
+#' In practice, we replace the error term involving \eqn{\sigma^2_h_j} and
+#' \eqn{\tau^2_j}, simply by \eqn{\tau^2_j}.
+#'
+#' The \code{full} model is the linear regression
+#' \deqn{Y_j_i ~ (\sum_h \mu_h_j * W_i_h) + (\sum_h_k \beta_h_j_k * W_i_h * X_i_k) +
+#'  error.}
+#' The \code{ridge} model is the ridge regression for the same equation,
+#' aiming to cope with multicollinearity of the independent variables.
+#' The \code{marginal} model tests the phenotype association only in one
+#' cell type \eqn{h}, under the linear regression,
+#' \deqn{Y_j_i ~ (\sum_h' \mu_h'_j * W_i_h') + (\sum_k \beta_h_j_k * W_i_h * X_i_k) +
+#'  error.}
+#'
 #' @param X Matrix (or vector) of phenotypes (and covariates); samples x phenotype(s).
 #' @param W Matrix of proportion of cell types; samples x cell types.
 #' @param Y Matrix of bulk omics measurements; probes x samples.
 #' X, W, Y should be numeric.
-#' @param test Statistical test to apply; either ridge, full or marginal.
+#' @param test Statistical test to apply; either \code{ridge},
+#' \code{full} or \code{marginal}.
 #' @param num.cores Number of CPU cores to use.
 #' Full and marginal tests are run in serial, thus num.cores is ignored.
 #' @param chunk.size The size of job for a CPU core in one batch.
@@ -75,14 +113,20 @@ ctassoc = function (X, W, Y, test = "ridge",
 
 #' Remove Unwanted Variations prior to applying ctassoc
 #'
+#' Remove Unwanted Variations prior to applying ctassoc
+#'
+#' First, for each CpG site, the full linear model of the \code{ctassoc}
+#' function is fitted, and the residual is computed.
+#' For the residuals over all CpG sites, the principal components (PCs)
+#' are computed.
+#' The top ten PCs are regarded as the unwanted variations,
+#' and subtracted from \code{Y}.
+#'
 #' @param X Matrix (or vector) of phenotypes (and covariates); samples x phenotype(s).
 #' @param W Matrix of proportion of cell types; samples x cell types.
 #' @param Y Matrix of bulk omics measurements; probes x samples.
 #' X, W, Y should be numeric.
 #' @return Y adjusted for the unwanted variations.
-#' First, linear regression of Y for the full model is computed.
-#' The first ten principal components of the residual is defined as
-#'  the unwanted variations, and subtracted from Y.
 #' @seealso ctassoc
 #' @export
 ctRUV = function (X, W, Y) {
