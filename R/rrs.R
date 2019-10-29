@@ -132,3 +132,31 @@ rrs.fit <- function(Y,
   class(ret) <- "rrs.fit"
   ret
 }
+
+##' Stein's Unbiased Risk Estimator (SURE) for reduced-rank ridge regression
+##'
+##' Stein's Unbiased Risk Estimator (SURE) for reduced-rank ridge regression
+##'
+##' @references
+##'
+##' Ulfarsson,M.O. and Solo,V. (2013)
+##' Tuning Parameter Selection for Underdetermined Reduced-Rank Regression.
+##' IEEE Signal Process. Lett., 20, 881–884.
+##'
+# lambda_ev depends on lambda
+rrs.SURE = function (rho_ev, lambda_ev, sigma2, My, lambda) {
+  Mx = length(rho_ev)
+  R = function (r, l) {
+    - sum(rho_ev[1:r]) +
+      2 * sigma2 *
+      ((sum(lambda_ev / (lambda_ev + l)) +
+          My - r) * r +
+         sum(sapply(1:r,
+                    function (j) {
+                      sum(2 * rho_ev[(r + 1):Mx] / (rho_ev[j] - rho_ev[(r + 1):Mx]))
+                    }))) }
+  result = data.frame(
+    r = 1:(Mx - 1),
+    R = sapply(1:(Mx - 1), function (r) { R(r, lambda) }))
+  return(result)
+}
