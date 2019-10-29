@@ -1,6 +1,9 @@
 ##' Fitting reduced-rank ridge regression with given rank and shrinkage penalty
 ##'
 ##' Fitting reduced-rank ridge regression with given rank and shrinkage penalty
+##' This is a modification of rrs.fit in rrpack version 0.1-6.
+##' In order to handle extremely large q = ncol(Y),
+##' generation of a q by q matrix is avoided.
 ##'
 ##' @param Y a matrix of response (n by q)
 ##' @param X a matrix of covariate (n by p)
@@ -17,7 +20,6 @@
 ##'   \item{Ad}{sigular value vector}
 ##'   \item{nrank}{rank of the fitted rrr}
 ##' @examples
-##' library(rrpack)
 ##' Y <- matrix(rnorm(400), 100, 4)
 ##' X <- matrix(rnorm(800), 100, 8)
 ##' rfit <- rrs.fit(Y, X)
@@ -53,10 +55,10 @@ rrs.fit <- function(Y,
   ## Use the Woodbury matrix identity
   if (lambda != 0) {
     S_xx_inv <- 1 / lambda * diag(p) -
-      lambda ^ (-2) * t(X) %*% ginv(diag(n) + lambda ^ (-1) * X %*%
+      lambda ^ (-2) * t(X) %*% MASS::ginv(diag(n) + lambda ^ (-1) * X %*%
                                       t(X)) %*% X
-  } else{
-    S_xx_inv <- ginv(S_xx)
+  } else {
+    S_xx_inv <- MASS::ginv(S_xx)
     if (sum(is.na(S_xx_inv)) > 0) {
       S_xx_inv <- solve(S_xx + 0.1 * diag(p))
     }
@@ -90,8 +92,12 @@ rrs.fit <- function(Y,
     Ad <- eigenSS$values[1:nrank]
   }
 
-  AA <- A %*% t(A)
-  C_rr <- C_ls %*% AA
+  # AA <- A %*% t(A)
+  # C_rr <- C_ls %*% AA
+  C_rr = 0
+  for (j in 1:ncol(A)) {
+    C_rr = C_rr + (C_ls %*% A[, j]) %*% t(A[, j])
+  }
 
   ##    if(c.svd){
   ##      svd_C <- svd(C_rr,nv=nrank,nu=nrank)
