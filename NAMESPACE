@@ -2,6 +2,7 @@
 
 export(ctRUV)
 export(ctassoc)
+export(rrs.fit)
 importFrom(R.utils,withTimeout)
 importFrom(broom,tidy)
 importFrom(data.table,rbindlist)

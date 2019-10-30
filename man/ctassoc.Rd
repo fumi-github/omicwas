@@ -14,8 +14,8 @@ ctassoc(X, W, Y, test = "ridge", num.cores = 1, chunk.size = 1000)
 \item{Y}{Matrix of bulk omics measurements; probes x samples.
 X, W, Y should be numeric.}
 
-\item{test}{Statistical test to apply; either \code{ridge},
-\code{full} or \code{marginal}.}
+\item{test}{Statistical test to apply; either \code{reducedrankridge},
+\code{ridge}, \code{full} or \code{marginal}.}
 
 \item{num.cores}{Number of CPU cores to use.
 Full and marginal tests are run in serial, thus num.cores is ignored.}

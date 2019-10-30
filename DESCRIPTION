@@ -12,7 +12,7 @@ Description: In bulk epigenome/transcriptome experiments, molecular expression
     The package is applicable to epigenome-wide association study (EWAS) of
     microarray experiments.
 Depends: R (>= 3.6.0)
-License: MIT + file LICENSE
+License: GPL-3
 Encoding: UTF-8
 LazyData: true
 Imports: broom,
@@ -21,6 +21,7 @@ Imports: broom,
     ff,
     glmnet,
     magrittr,
+    MASS,
     matrixStats,
     parallel,
     ridge,
