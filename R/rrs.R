@@ -32,7 +32,6 @@
 ##' freedom of reduced-rank estimators in multivariate
 ##' regression. \emph{Biometrika}, 102, 457--477.
 ##'
-##' @importFrom MASS ginv
 ##' @export
 rrs.fit <- function(Y,
                     X,
