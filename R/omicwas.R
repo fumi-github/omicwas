@@ -41,8 +41,8 @@
 #' @param W Matrix of proportion of cell types; samples x cell types.
 #' @param Y Matrix of bulk omics measurements; probes x samples.
 #' X, W, Y should be numeric.
-#' @param test Statistical test to apply; either \code{ridge},
-#' \code{full} or \code{marginal}.
+#' @param test Statistical test to apply; either \code{reducedrankridge},
+#' \code{ridge}, \code{full} or \code{marginal}.
 #' @param num.cores Number of CPU cores to use.
 #' Full and marginal tests are run in serial, thus num.cores is ignored.
 #' @param chunk.size The size of job for a CPU core in one batch.
@@ -86,12 +86,16 @@ ctassoc = function (X, W, Y, test = "ridge",
                     # upper.limit = NULL,
                     num.cores = 1,
                     chunk.size = 1000) {
-  if (!(test %in% c("ridge", "full", "marginal"))) {
-    abort('Error: test must be either "glmnet", "full" or "marginal"')
+  if (!(test %in% c("reducedrankridge", "ridge", "full", "marginal"))) {
+    abort('Error: test must be either "reducedrankridge", "ridge", "full", "marginal"')
   }
   .check_input(X, W, Y)
   X = data.frame(t(t(X)-colMeans(X)))
-  switch(test, "ridge" = {
+  switch(test, "reducedrankridge" = {
+    .full_assoc(X, W, Y, test,
+                num.cores = num.cores,
+                chunk.size = chunk.size)
+  }, "ridge" = {
     .full_assoc(X, W, Y, test,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
@@ -231,6 +235,189 @@ ctRUV = function (X, W, Y) {
                             data = list(y = t(Y), x = X1W)))
     result$term = sub("^x", "", result$term)
     result = dplyr::rename(result, celltypeterm = term)
+
+  }, "reducedrankridge" = { # -----------------------------------------
+    inform("Reduced-rank ridge regression ...")
+    tYadjW = lm(y ~ 0 + x,
+                data = list(y = t(Y), x = as.matrix(W)))$residuals
+    tYadjW = t(t(tYadjW) - colMeans(tYadjW))
+    rm(Y)
+    gc()
+    tYadjW_colSds = matrixStats::colSds(tYadjW)
+    tYadjWsc = t(t(tYadjW) / tYadjW_colSds)
+    rm(tYadjW)
+    gc()
+    XW = t(t(XW) - colMeans(XW))
+    XW_colSds = matrixStats::colSds(XW)
+    XWsc = t(t(XW) / XW_colSds)
+
+    if (ncol(tYadjWsc) > 1e4) {
+      set.seed(1)
+      tYsmall = tYadjWsc[, sample(ncol(tYadjWsc), 1e4)]
+    } else {
+      tYsmall = tYadjWsc
+    }
+
+    inform("Scanning hyperparameters ...")
+    imax = 10
+    pb = txtProgressBar(max = imax, style = 3)
+    SURE = data.frame()
+    for (i in 1:imax) {
+      lambda = 10^(i - 8)
+      rfit = rrs.fit(
+        tYsmall,
+        XWsc,
+        lambda = lambda)
+      result = .rrs.SURE(
+        rho_ev = rfit$Ad,
+        lambda_ev = (svd(XWsc)$d)^2,
+        sigma2 = mean((tYsmall - rfit$fitted)^2),
+        My = ncol(tYsmall),
+        lambda = lambda)
+      SURE = rbind(SURE, result)
+      setTxtProgressBar(pb, i)
+    }
+    close(pb)
+    rm(tYsmall)
+    gc()
+
+    # ggplot(data = SURE) +
+    #   geom_point(aes(x = rank,
+    #                  y = lambda,
+    #                  color = log(Rhat - min(SURE$Rhat) + 1))) +
+    #   scale_y_log10()
+
+    SURE = SURE[which.min(SURE$Rhat), ]
+    r = SURE$rank[1]
+    l = SURE$lambda[1]
+    inform(paste0("reduced rank = ", r))
+    inform(paste0("ridge penalty lambda = ", l))
+
+    rfit = rrs.fit(
+      tYadjWsc,
+      XWsc,
+      nrank = r,
+      lambda = l)
+    estimate = rfit$coef
+    rm(rfit)
+
+    inform("Jackknife estimation of standard error ...")
+    imax = 20
+    groupassign = rep(1:imax, ceiling(nrow(tYadjWsc)/imax))[1:nrow(tYadjWsc)]
+    set.seed(1)
+    groupassign = groupassign[sample(length(groupassign))]
+    coef_jk_ff = ff::ff(
+      0,
+      dim = c(imax, dim(estimate)))
+    pb = txtProgressBar(max = imax, style = 3)
+    for (i in 1:imax) {
+      coef_jk_ff[i, , ] = rrs.fit(
+        tYadjWsc[groupassign != i, ],
+        XWsc[groupassign != i, ],
+        nrank = r,
+        lambda = l)$coef
+      gc()
+      setTxtProgressBar(pb, i)
+    }
+    close(pb)
+    coef_jk_mean = ff::ffapply(
+      X = coef_jk_ff,
+      MARGIN = c(2,3),
+      AFUN = mean,
+      RETURN = TRUE,
+      FF_RETURN = FALSE)
+    for (i in 1:imax) {
+      coef_jk_ff[i, , ] = (coef_jk_ff[i, , ] - coef_jk_mean)^2 }
+    SE = sqrt(((imax - 1)/imax) * ff::ffapply(
+      X = coef_jk_ff,
+      MARGIN = c(2,3),
+      AFUN = sum,
+      RETURN = TRUE,
+      FF_RETURN = FALSE))
+    rownames(SE) = rownames(estimate)
+    ff::delete(coef_jk_ff)
+    rm(coef_jk_mean)
+    gc()
+
+    # scale back
+    estimate = estimate / XW_colSds
+    estimate = t(t(estimate) * tYadjW_colSds)
+    SE = SE / XW_colSds
+    SE = t(t(SE) * tYadjW_colSds)
+
+    estimate = as.data.frame(t(estimate))
+    estimate$response = colnames(tYadjWsc)
+    estimate = tidyr::pivot_longer(
+      estimate,
+      cols = -response,
+      names_to = "celltypeterm",
+      values_to = "estimate")
+    SE = as.data.frame(t(SE))
+    SE$response = colnames(tYadjWsc)
+    SE = tidyr::pivot_longer(
+      SE,
+      cols = -response,
+      names_to = "celltypeterm",
+      values_to = "SE")
+    result = estimate %>%
+      left_join(SE, by = c("response", "celltypeterm")) %>%
+      dplyr::mutate(statistic = estimate/SE) %>%
+      dplyr::mutate(p.value = pnorm(abs(statistic), lower.tail = FALSE)*2) %>%
+      dplyr::select(-SE)
+
+    ### NOT USED cca or rgcca
+
+    # mineffect = 5 # among the CpG sites
+    # # option remove noise
+    # if (min(dim(tYadjW)) > 100) {
+    #   s = svd(tYadjW)
+    #   # remove small PCs as noise
+    #   s$d[s$d < sqrt(sum(s$d^2)*mineffect/ncol(tYadjW))] = 0
+    #   D = diag(s$d)
+    #   tYadjW = s$u %*% D %*% t(s$v)
+    # }
+
+    # #   cca = CCA::rcc(tYadjW, XW, 0.001, 0.001) # memory error macbook 658 x 45172
+    # #   cca = mixOmics::rcc(tYadjW, XW, lambda1 = 0.001, lambda2 = 0.001)
+    #
+    # # TODO determine number of partition and then adjust that the sizes are equal
+    # tYadjWlist = list()
+    # for (i in 1:5) {
+    #   tYadjWlist = c(tYadjWlist,
+    #                  list(tYadjW[, seq(floor(ncol(tYadjW)*(i-1)/5)+1,
+    #                                    floor(ncol(tYadjW)*i/5) )]))
+    # }
+    # cca = RGCCA::rgcca(c(list(XW), tYadjWlist),
+    #                    ncomp = rep(10, length(tYadjWlist)+1))
+    #
+    # loading = colSums((cca$scores$xscores)^2) / colSums((cca$xcoef)^2)
+    # loading =
+    #   sqrt(colSums((cca$scores$xscores)^2) /
+    #          (sum(tYadjW^2) / ncol(tYadjW))) /
+    #   sqrt(colSums((cca$xcoef)^2))
+    #
+    # topn = sum(CCP::p.asym(
+    #   cca$cor,
+    #   nrow(tYadjW),
+    #   ncol(tYadjW),
+    #   ncol(XW))$p.value < 0.05)
+    # inform(paste0(topn, " canonical correlations were significant."))
+
+    # estimate = 0
+    # SE = 0
+    # for (i in 1:topn) {
+    #   estimate = estimate +
+    #     svdY$d[i] *
+    #     matrix(svdY$u[, i], ncol = 1) %*%
+    #     matrix(svdYv_coef[[i]]$estimate, nrow = 1)
+    #   SE = SE +
+    #     svdY$d[i] *
+    #     abs(matrix(svdY$u[, i], ncol = 1)) %*%
+    #     matrix(svdYv_coef[[i]]$SE, nrow = 1)
+    # }
+    # estimate = as.data.frame(estimate)
+    # SE = as.data.frame(SE)
+    # colnames(estimate) = colnames(SE) = colnames(X1W)
 
   }, "ridge" = { # -----------------------------------------
     inform("Ridge regression ...")
