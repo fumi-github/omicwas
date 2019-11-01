@@ -421,17 +421,20 @@ ctRUV = function (X, W, Y) {
 
   }, "ridge" = { # -----------------------------------------
     inform("Ridge regression ...")
-    tY = t(Y)
+    # First regress out the intercepts,
+    # because all variables are regularized in the ridge package.
+    tYadjXW = lm(y ~ 0 + x,
+                 data = list(y = t(Y), x = as.matrix(W)))$residuals
     rm(Y)
     gc()
     batchsize = num.cores * chunk.size
-    totalsize = ncol(tY)
+    totalsize = ncol(tYadjXW)
     nbatches = ceiling(totalsize/batchsize)
-    tYff = ff::ff(
-      tY,
-      dim = dim(tY),
-      dimnames = dimnames(tY))
-    rm(tY)
+    tYadjXWff = ff::ff(
+      tYadjXW,
+      dim = dim(tYadjXW),
+      dimnames = dimnames(tYadjXW))
+    rm(tYadjXW)
     gc()
     result = list()
     pb = txtProgressBar(max = nbatches, style = 3)
@@ -440,16 +443,16 @@ ctRUV = function (X, W, Y) {
         result,
         parApply(
           cl = cl,
-          tYff[, seq(1 + i * batchsize,
+          tYadjXWff[, seq(1 + i * batchsize,
                           min((i+1) * batchsize, totalsize))],
           2,
-          function (y, X1W) {
+          function (y, XW) {
             # ridge occaisionaly takes very long time
             tryCatch(
               expr = {
                 R.utils::withTimeout(
-                  {mod = ridge::linearRidge(y ~ x,
-                                            data = list(y = y, x = X1W))
+                  {mod = ridge::linearRidge(y ~ 0 + x,
+                                            data = list(y = y, x = XW))
                   # Use summary.ridgeLinear to get unscaled coefficients,
                   # because coefficients in mod$coef or pvals(mod)$coef are scaled.
                   fun = getFromNamespace("summary.ridgeLinear", "ridge")
@@ -463,15 +466,15 @@ ctRUV = function (X, W, Y) {
                   },
                   timeout = 300) },
               TimeoutException = function (ex) {
-                data.frame(estimate     = rep(NA, ncol(X1W)),
-                           statistic    = rep(NA, ncol(X1W)),
-                           p.value      = rep(NA, ncol(X1W)),
-                           celltypeterm = colnames(X1W)) }) },
-          X1W))
+                data.frame(estimate     = rep(NA, ncol(XW)),
+                           statistic    = rep(NA, ncol(XW)),
+                           p.value      = rep(NA, ncol(XW)),
+                           celltypeterm = colnames(XW)) }) },
+          XW))
       setTxtProgressBar(pb, i + 1)
     }
     close(pb)
-    ff::delete(tYff)
+    ff::delete(tYadjXWff)
     gc()
     result = dplyr::as_tibble(data.table::rbindlist(result, idcol="response"))
     result$statistic = sign(result$estimate) * result$statistic
@@ -582,7 +585,6 @@ ctRUV = function (X, W, Y) {
   }) # end switch ------------------------------
 
   inform("Summarizing result ...")
-  result = result[!is.na(result$statistic), ]
   result$celltype =
     c(colnames(Woriginal), "1")[
       match(sub("\\..*", "", result$celltypeterm),
