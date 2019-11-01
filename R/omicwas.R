@@ -152,7 +152,10 @@ ctRUV = function (X, W, Y, method = "PCA") {
     rm(s, D)
     gc()
   }, "SVA" = {
-    sv = sva::sva(Y, X1W)$sv
+    sv = sva::sva(Y,
+                  X1W,
+                  vfilter = min(nrow(Y), 1e4))$sv
+    cat("\n")
     Y = t(lm(t(Y) ~ sv)$residuals)
     rm(sv)
     gc()
