@@ -27,5 +27,6 @@ Imports: broom,
     ridge,
     rlang,
     R.utils,
+    sva,
     tidyr
 RoxygenNote: 6.1.1
