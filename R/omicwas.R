@@ -152,8 +152,13 @@ ctRUV = function (X, W, Y, method = "PCA") {
     rm(s, D)
     gc()
   }, "SVA" = {
+    mod = model.matrix(formula(paste(c("~ 0", colnames(X1W)), collapse = " + ")),
+                       data = as.data.frame(X1W))
+    mod0 = model.matrix(formula(paste(c("~ 0", paste0(colnames(W), ".1")), collapse = " + ")),
+                        data = as.data.frame(X1W))
     sv = sva::sva(Y,
-                  X1W,
+                  mod,
+                  mod0,
                   vfilter = min(nrow(Y), 1e4))$sv
     cat("\n")
     Y = t(lm(t(Y) ~ sv)$residuals)
