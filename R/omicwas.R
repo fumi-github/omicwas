@@ -130,25 +130,33 @@ ctassoc = function (X, W, Y, test = "ridge",
 #' @param W Matrix of proportion of cell types; samples x cell types.
 #' @param Y Matrix of bulk omics measurements; probes x samples.
 #' X, W, Y should be numeric.
+#' @param method "PCA" or "SVA"
 #' @return Y adjusted for the unwanted variations.
 #' @seealso ctassoc
 #' @export
-ctRUV = function (X, W, Y) {
+ctRUV = function (X, W, Y, method = "PCA") {
   .check_input(X, W, Y)
   X = data.frame(t(t(X)-colMeans(X)))
   X1W = do.call(cbind, apply(W, 2, function(W_h) {cbind(X, 1) * W_h}))
   X1W = as.matrix(X1W)
-  YadjX1W = t(lm(y ~ 0 + x,
-                 data = list(y = t(Y), x = X1W))$residuals)
-  s = svd(YadjX1W)
-  rm(YadjX1W)
-  gc()
-  # regard top 10 principal components as unwanted variation
-  s$d[11:length(s$d)] = 0
-  D = diag(s$d)
-  Y = Y - s$u %*% D %*% t(s$v)
-  rm(s, D)
-  gc()
+  switch(method, "PCA" = {
+    YadjX1W = t(lm(y ~ 0 + x,
+                   data = list(y = t(Y), x = X1W))$residuals)
+    s = svd(YadjX1W)
+    rm(YadjX1W)
+    gc()
+    # regard top 10 principal components as unwanted variation
+    s$d[11:length(s$d)] = 0
+    D = diag(s$d)
+    Y = Y - s$u %*% D %*% t(s$v)
+    rm(s, D)
+    gc()
+  }, "SVA" = {
+    sv = sva::sva(Y, X1W)$sv
+    Y = t(lm(t(Y) ~ sv)$residuals)
+    rm(sv)
+    gc()
+  })
   return(Y)
 }
 
