@@ -37,10 +37,11 @@
 #' \deqn{Y_j_i ~ (\sum_h' \mu_h'_j * W_i_h') + (\sum_k \beta_h_j_k * W_i_h * X_i_k) +
 #'  error.}
 #'
-#' @param X Matrix (or vector) of phenotypes (and covariates); samples x phenotype(s).
+#' @param X Matrix (or vector) of phenotypes; samples x phenotype(s).
 #' @param W Matrix of proportion of cell types; samples x cell types.
 #' @param Y Matrix of bulk omics measurements; probes x samples.
-#' X, W, Y should be numeric.
+#' @param C Matrix (or vector) of covariates; samples x covariate(s).
+#' X, W, Y, C should be numeric.
 #' @param test Statistical test to apply; either \code{reducedrankridge},
 #' \code{ridge}, \code{full} or \code{marginal}.
 #' @param num.cores Number of CPU cores to use.
@@ -80,7 +81,7 @@
 #' @importFrom R.utils withTimeout
 #' @importFrom tidyr pivot_longer
 #' @export
-ctassoc = function (X, W, Y, test = "ridge",
+ctassoc = function (X, W, Y, C = NULL, test = "ridge",
                     # alpha = 0,
                     # lower.limit = NULL,
                     # upper.limit = NULL,
@@ -96,7 +97,7 @@ ctassoc = function (X, W, Y, test = "ridge",
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   }, "ridge" = {
-    .full_assoc(X, W, Y, test,
+    .full_assoc(X, W, Y, C, test,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   # }, "glmnet" = {
@@ -126,22 +127,28 @@ ctassoc = function (X, W, Y, test = "ridge",
 #' The top ten PCs are regarded as the unwanted variations,
 #' and subtracted from \code{Y}.
 #'
-#' @param X Matrix (or vector) of phenotypes (and covariates); samples x phenotype(s).
+#' @param X Matrix (or vector) of phenotypes; samples x phenotype(s).
 #' @param W Matrix of proportion of cell types; samples x cell types.
 #' @param Y Matrix of bulk omics measurements; probes x samples.
-#' X, W, Y should be numeric.
+#' @param C Matrix (or vector) of covariates; samples x covariate(s).
+#' X, W, Y, C should be numeric.
 #' @param method "PCA" or "SVA"
 #' @return Y adjusted for the unwanted variations.
 #' @seealso ctassoc
 #' @export
-ctRUV = function (X, W, Y, method = "PCA") {
+ctRUV = function (X, W, Y, C = NULL, method = "PCA") {
   .check_input(X, W, Y)
   X = data.frame(t(t(X)-colMeans(X)))
   X1W = do.call(cbind, apply(W, 2, function(W_h) {cbind(X, 1) * W_h}))
   X1W = as.matrix(X1W)
   switch(method, "PCA" = {
-    YadjX1W = t(lm(y ~ 0 + x,
-                   data = list(y = t(Y), x = X1W))$residuals)
+    if (is.null(C)) {
+      YadjX1W = t(lm(y ~ 0 + x,
+                     data = list(y = t(Y), x = X1W))$residuals)
+    } else {
+      YadjX1W = t(lm(y ~ x,
+                     data = list(y = t(Y), x = cbind(X1W, as.matrix(C))))$residuals)
+    }
     s = svd(YadjX1W)
     rm(YadjX1W)
     gc()
@@ -215,7 +222,7 @@ ctRUV = function (X, W, Y, method = "PCA") {
   return(result)
 }
 
-.full_assoc = function (X, W, Y, test,
+.full_assoc = function (X, W, Y, C, test,
                         alpha,
                         lower.limit,
                         upper.limit,
@@ -439,8 +446,13 @@ ctRUV = function (X, W, Y, method = "PCA") {
     inform("Ridge regression ...")
     # First regress out the intercepts,
     # because all variables are regularized in the ridge package.
-    tYadjXW = lm(y ~ 0 + x,
-                 data = list(y = t(Y), x = as.matrix(W)))$residuals
+    if (is.null(C)) {
+      tYadjXW = lm(y ~ 0 + x,
+                   data = list(y = t(Y), x = as.matrix(W)))$residuals
+    } else {
+      tYadjXW = lm(y ~ x,
+                   data = list(y = t(Y), x = as.matrix(cbind(W, C))))$residuals
+    }
     rm(Y)
     gc()
     batchsize = num.cores * chunk.size
