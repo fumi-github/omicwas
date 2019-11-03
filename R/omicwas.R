@@ -90,8 +90,13 @@ ctassoc = function (X, W, Y, C = NULL, test = "ridge",
   if (!(test %in% c("reducedrankridge", "ridge", "full", "marginal"))) {
     abort('Error: test must be either "reducedrankridge", "ridge", "full", "marginal"')
   }
+  X = .as.matrix(X, colnam = "disease")
+  W = .as.matrix(W)
+  if (!is.null(C)) {
+    C = .as.matrix(C)
+  }
   .check_input(X, W, Y)
-  X = data.frame(t(t(X)-colMeans(X)))
+  X = X - matrix(colMeans(X), nrow = nrow(X), ncol = ncol(X), byrow = TRUE)
   switch(test, "reducedrankridge" = {
     .full_assoc(X, W, Y, test,
                 num.cores = num.cores,
@@ -137,17 +142,21 @@ ctassoc = function (X, W, Y, C = NULL, test = "ridge",
 #' @seealso ctassoc
 #' @export
 ctRUV = function (X, W, Y, C = NULL, method = "PCA") {
+  X = .as.matrix(X)
+  W = .as.matrix(W)
+  if (!is.null(C)) {
+    C = .as.matrix(C)
+  }
   .check_input(X, W, Y)
-  X = data.frame(t(t(X)-colMeans(X)))
-  X1W = do.call(cbind, apply(W, 2, function(W_h) {cbind(X, 1) * W_h}))
-  X1W = as.matrix(X1W)
+  X = X - matrix(colMeans(X), nrow = nrow(X), ncol = ncol(X), byrow = TRUE)
+  X1W = as.matrix(do.call(cbind, apply(W, 2, function(W_h) {cbind(as.data.frame(X), 1) * W_h})))
   switch(method, "PCA" = {
     if (is.null(C)) {
       YadjX1W = t(lm(y ~ 0 + x,
                      data = list(y = t(Y), x = X1W))$residuals)
     } else {
       YadjX1W = t(lm(y ~ x,
-                     data = list(y = t(Y), x = cbind(X1W, as.matrix(C))))$residuals)
+                     data = list(y = t(Y), x = cbind(X1W, C)))$residuals)
     }
     s = svd(YadjX1W)
     rm(YadjX1W)
@@ -175,25 +184,27 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA") {
   return(Y)
 }
 
+.as.matrix = function (X, colnam = NULL) {
+  if (is.null(dim(X))) {
+    X = matrix(X, ncol = 1)
+    if (!is.null(colnam)) {
+      colnames(X) = colnam
+    }
+  } else {
+    X = as.matrix(X)
+  }
+  return(X)
+}
+
 .check_input = function (X, W, Y) {
   if (!is.matrix(Y)) {
     abort("Error: Y must be a matrix.")
   }
-  if (is.null(dim(W))) {
-    abort("Error: W must be a matrix or dataframe.")
-  } else {
-    if (ncol(Y) != nrow(W)) {
-      abort("Error: ncol(Y) must equal nrow(W)")
-    }
+  if (ncol(Y) != nrow(W)) {
+    abort("Error: ncol(Y) must equal nrow(W)")
   }
-  if (is.null(dim(X))) {
-    if (ncol(Y) != length(X)) {
-      abort("Error: ncol(Y) must equal length(vector X)")
-    }
-  } else {
-    if (ncol(Y) != nrow(X)) {
-      abort("Error: ncol(Y) must equal nrow(matrix X)")
-    }
+  if (ncol(Y) != nrow(X)) {
+    abort("Error: ncol(Y) must equal nrow(X)")
   }
   return(0)
 }
@@ -213,7 +224,7 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA") {
       #                      data = list(y = Y, x = as.matrix(Xweighted))))
       Xweighted = cbind(W, X * W_h)
       res = broom::tidy(lm(y ~ 0 + x,
-                           data = list(y = Y, x = as.matrix(Xweighted))))
+                           data = list(y = Y, x = Xweighted)))
       res$term = sub("^x", "", res$term)
       return(list(coefficients=res)) },
     X, W, Y)
@@ -247,10 +258,8 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA") {
   # maintain irreversibility when combining colnames by "." to XW, X1W
   colnames(X) = gsub("\\.", "_", colnames(X))
   colnames(W) = gsub("\\.", "_", colnames(W))
-  XW = do.call(cbind, apply(W, 2, function(W_h) {X * W_h}))
-  XW = as.matrix(XW)
-  X1W = do.call(cbind, apply(W, 2, function(W_h) {cbind(X, 1) * W_h}))
-  X1W = as.matrix(X1W)
+  X1W = as.matrix(do.call(cbind, apply(W, 2, function(W_h) {cbind(as.data.frame(X), 1) * W_h})))
+  XW = X1W[, -c((ncol(X)+1)*(1:ncol(W)))]
 
   switch(test, "full" = { # --------------------------------
     inform("Linear regression ...")
@@ -262,7 +271,7 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA") {
   }, "reducedrankridge" = { # -----------------------------------------
     inform("Reduced-rank ridge regression ...")
     tYadjW = lm(y ~ 0 + x,
-                data = list(y = t(Y), x = as.matrix(W)))$residuals
+                data = list(y = t(Y), x = W))$residuals
     tYadjW = t(t(tYadjW) - colMeans(tYadjW))
     rm(Y)
     gc()
@@ -270,7 +279,7 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA") {
     tYadjWsc = t(t(tYadjW) / tYadjW_colSds)
     rm(tYadjW)
     gc()
-    XW = t(t(XW) - colMeans(XW))
+    XW = XW - matrix(colMeans(XW), nrow = nrow(XW), ncol = ncol(XW), byrow = TRUE)
     XW_colSds = matrixStats::colSds(XW)
     XWsc = t(t(XW) / XW_colSds)
 
@@ -448,10 +457,10 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA") {
     # because all variables are regularized in the ridge package.
     if (is.null(C)) {
       tYadjXW = lm(y ~ 0 + x,
-                   data = list(y = t(Y), x = as.matrix(W)))$residuals
+                   data = list(y = t(Y), x = W))$residuals
     } else {
       tYadjXW = lm(y ~ x,
-                   data = list(y = t(Y), x = as.matrix(cbind(W, C))))$residuals
+                   data = list(y = t(Y), x = cbind(W, C)))$residuals
     }
     rm(Y)
     gc()
@@ -579,7 +588,7 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA") {
           upper.limits = upper.limits)
         return(mod$beta[, 1]) },
       X1W, alpha, penalty.factor, lower.limits, upper.limits)
-  result = data.frame(t(result))
+  result = as.data.frame(t(result))
   result$response = rownames(result)
   result = tidyr::pivot_longer(
     result,
@@ -589,7 +598,7 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA") {
 
   inform("Computing statistical significance ...")
   YSd = colSds(lm(y ~ 0 + x,
-                  data = list(y = t(Y), x = as.matrix(W))
+                  data = list(y = t(Y), x = W)
                   )$residuals)
   # NOT USED: raw Sds for constants, residual Sds for other terms
   # constantindiceslong =
