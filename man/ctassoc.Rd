@@ -4,15 +4,18 @@
 \alias{ctassoc}
 \title{Cell-Type-Specific Association Testing}
 \usage{
-ctassoc(X, W, Y, test = "ridge", num.cores = 1, chunk.size = 1000)
+ctassoc(X, W, Y, C = NULL, test = "ridge", num.cores = 1,
+  chunk.size = 1000)
 }
 \arguments{
-\item{X}{Matrix (or vector) of phenotypes (and covariates); samples x phenotype(s).}
+\item{X}{Matrix (or vector) of phenotypes; samples x phenotype(s).}
 
 \item{W}{Matrix of proportion of cell types; samples x cell types.}
 
-\item{Y}{Matrix of bulk omics measurements; probes x samples.
-X, W, Y should be numeric.}
+\item{Y}{Matrix of bulk omics measurements; probes x samples.}
+
+\item{C}{Matrix (or vector) of covariates; samples x covariate(s).
+X, W, Y, C should be numeric.}
 
 \item{test}{Statistical test to apply; either \code{reducedrankridge},
 \code{ridge}, \code{full} or \code{marginal}.}

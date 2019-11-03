@@ -4,15 +4,17 @@
 \alias{ctRUV}
 \title{Remove Unwanted Variations prior to applying ctassoc}
 \usage{
-ctRUV(X, W, Y, method = "PCA")
+ctRUV(X, W, Y, C = NULL, method = "PCA")
 }
 \arguments{
-\item{X}{Matrix (or vector) of phenotypes (and covariates); samples x phenotype(s).}
+\item{X}{Matrix (or vector) of phenotypes; samples x phenotype(s).}
 
 \item{W}{Matrix of proportion of cell types; samples x cell types.}
 
-\item{Y}{Matrix of bulk omics measurements; probes x samples.
-X, W, Y should be numeric.}
+\item{Y}{Matrix of bulk omics measurements; probes x samples.}
+
+\item{C}{Matrix (or vector) of covariates; samples x covariate(s).
+X, W, Y, C should be numeric.}
 
 \item{method}{"PCA" or "SVA"}
 }
