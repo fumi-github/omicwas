@@ -98,11 +98,13 @@ ctassoc = function (X, W, Y, C = NULL, test = "ridge",
   .check_input(X, W, Y)
   X = X - matrix(colMeans(X), nrow = nrow(X), ncol = ncol(X), byrow = TRUE)
   switch(test, "reducedrankridge" = {
-    .full_assoc(X, W, Y, test,
+    .full_assoc(X, W, Y,
+                test = test,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   }, "ridge" = {
-    .full_assoc(X, W, Y, C, test,
+    .full_assoc(X, W, Y, C,
+                test = test,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   # }, "glmnet" = {
@@ -113,7 +115,8 @@ ctassoc = function (X, W, Y, C = NULL, test = "ridge",
   #               num.cores = num.cores,
   #               chunk.size = chunk.size)
   }, "full" = {
-    .full_assoc(X, W, Y, test,
+    .full_assoc(X, W, Y,
+                test = test,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   }, "marginal" = {
