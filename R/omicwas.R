@@ -39,7 +39,7 @@
 #'
 #' @param X Matrix (or vector) of phenotypes; samples x phenotype(s).
 #' @param W Matrix of proportion of cell types; samples x cell types.
-#' @param Y Matrix of bulk omics measurements; probes x samples.
+#' @param Y Matrix (or vector) of bulk omics measurements; probes x samples.
 #' @param C Matrix (or vector) of covariates; samples x covariate(s).
 #' X, W, Y, C should be numeric.
 #' @param test Statistical test to apply; either \code{reducedrankridge},
@@ -90,10 +90,11 @@ ctassoc = function (X, W, Y, C = NULL, test = "ridge",
   if (!(test %in% c("reducedrankridge", "ridge", "full", "marginal"))) {
     abort('Error: test must be either "reducedrankridge", "ridge", "full", "marginal"')
   }
-  X = .as.matrix(X, colnam = "disease")
-  W = .as.matrix(W)
+  X = .as.matrix(X, d = "vertical", nam = "X")
+  W = .as.matrix(W, d = "vertical", nam = "W")
+  Y = .as.matrix(Y, d = "horizontal", nam = "Y")
   if (!is.null(C)) {
-    C = .as.matrix(C)
+    C = .as.matrix(C, d = "vertical", nam = "C")
   }
   .check_input(X, W, Y)
   X = .colcenteralize(X)
@@ -137,7 +138,7 @@ ctassoc = function (X, W, Y, C = NULL, test = "ridge",
 #'
 #' @param X Matrix (or vector) of phenotypes; samples x phenotype(s).
 #' @param W Matrix of proportion of cell types; samples x cell types.
-#' @param Y Matrix of bulk omics measurements; probes x samples.
+#' @param Y Matrix (or vector) of bulk omics measurements; probes x samples.
 #' @param C Matrix (or vector) of covariates; samples x covariate(s).
 #' X, W, Y, C should be numeric.
 #' @param method "PCA" or "SVA"
@@ -145,10 +146,11 @@ ctassoc = function (X, W, Y, C = NULL, test = "ridge",
 #' @seealso ctassoc
 #' @export
 ctRUV = function (X, W, Y, C = NULL, method = "PCA") {
-  X = .as.matrix(X)
-  W = .as.matrix(W)
+  X = .as.matrix(X, d = "vertical")
+  W = .as.matrix(W, d = "vertical")
+  Y = .as.matrix(Y, d = "horizontal", nam = "Y")
   if (!is.null(C)) {
-    C = .as.matrix(C)
+    C = .as.matrix(C, d = "vertical")
   }
   .check_input(X, W, Y)
   X = .colcenteralize(X)
@@ -187,12 +189,19 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA") {
   return(Y)
 }
 
-.as.matrix = function (X, colnam = NULL) {
+.as.matrix = function (X, d, nam = NULL) {
   if (is.null(dim(X))) {
-    X = matrix(X, ncol = 1)
-    if (!is.null(colnam)) {
-      colnames(X) = colnam
-    }
+    switch(d, "vertical" = {
+      X = matrix(X, ncol = 1)
+      if (!is.null(nam)) {
+        colnames(X) = nam
+      }
+    }, "horizontal" = {
+      X = matrix(X, nrow = 1)
+      if (!is.null(nam)) {
+        rownames(X) = nam
+      }
+    })
   } else {
     X = as.matrix(X)
   }
