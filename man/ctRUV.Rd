@@ -16,10 +16,10 @@ ctRUV(X, W, Y, C = NULL, method = "PCA", nPC = NULL)
 \item{C}{Matrix (or vector) of covariates; samples x covariate(s).
 X, W, Y, C should be numeric.}
 
-\item{method}{"PCA" or "SVA"}
+\item{method}{\code{"PCA"} or \code{"SVA"}}
 
 \item{nPC}{Number of PCs to be regarded as unwanted variation.
-If NULL, automatically computed by the Auer-Gervini approach.}
+If \code{NULL}, automatically computed by the Auer-Gervini approach.}
 }
 \value{
 Y adjusted for the unwanted variations.
