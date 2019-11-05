@@ -142,10 +142,12 @@ ctassoc = function (X, W, Y, C = NULL, test = "ridge",
 #' @param C Matrix (or vector) of covariates; samples x covariate(s).
 #' X, W, Y, C should be numeric.
 #' @param method "PCA" or "SVA"
+#' @param nPC Number of PCs to be regarded as unwanted variation.
+#' If NULL, automatically computed by the Auer-Gervini approach.
 #' @return Y adjusted for the unwanted variations.
 #' @seealso ctassoc
 #' @export
-ctRUV = function (X, W, Y, C = NULL, method = "PCA") {
+ctRUV = function (X, W, Y, C = NULL, method = "PCA", nPC = NULL) {
   X = .as.matrix(X, d = "vertical")
   W = .as.matrix(W, d = "vertical")
   Y = .as.matrix(Y, d = "horizontal", nam = "Y")
@@ -166,8 +168,18 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA") {
     s = svd(YadjX1W)
     rm(YadjX1W)
     gc()
-    # regard top 10 principal components as unwanted variation
-    s$d[11:length(s$d)] = 0
+    if (is.null(nPC)) {
+      # nPC computed by Auer-Gervini approach of PCDimension package
+      # Same as below
+      # spca = ClassDiscovery::SamplePCA(YadjX1W)
+      # agDimension(AuerGervini(spca))
+      # agDimension(AuerGervini(spca@variances, dd = dim(YadjX1W)))
+      nPC = PCDimension::agDimension(PCDimension::AuerGervini(
+        Lambda = (s$d)^2/nrow(s$v),
+        dd = c(nrow(s$u), nrow(s$v))))
+    }
+    inform(paste0("Top ", nPC, " PC(s) are regarded as unwanted variation."))
+    s$d[min(nPC+1, length(s$d)):length(s$d)] = 0
     D = diag(s$d)
     Y = Y - s$u %*% D %*% t(s$v)
     rm(s, D)
