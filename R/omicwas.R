@@ -96,7 +96,7 @@ ctassoc = function (X, W, Y, C = NULL, test = "ridge",
     C = .as.matrix(C)
   }
   .check_input(X, W, Y)
-  X = X - matrix(colMeans(X), nrow = nrow(X), ncol = ncol(X), byrow = TRUE)
+  X = .colcenteralize(X)
   switch(test, "reducedrankridge" = {
     .full_assoc(X, W, Y,
                 test = test,
@@ -151,7 +151,7 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA") {
     C = .as.matrix(C)
   }
   .check_input(X, W, Y)
-  X = X - matrix(colMeans(X), nrow = nrow(X), ncol = ncol(X), byrow = TRUE)
+  X = .colcenteralize(X)
   X1W = as.matrix(do.call(cbind, apply(W, 2, function(W_h) {cbind(as.data.frame(X), 1) * W_h})))
   switch(method, "PCA" = {
     if (is.null(C)) {
@@ -197,6 +197,13 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA") {
     X = as.matrix(X)
   }
   return(X)
+}
+
+.colcenteralize = function (m) {
+  m -	matrix(colMeans(m, na.rm=TRUE),
+             nrow = nrow(m),
+             ncol = ncol(m),
+             byrow = TRUE)
 }
 
 .check_input = function (X, W, Y) {
@@ -275,14 +282,14 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA") {
     inform("Reduced-rank ridge regression ...")
     tYadjW = lm(y ~ 0 + x,
                 data = list(y = t(Y), x = W))$residuals
-    tYadjW = t(t(tYadjW) - colMeans(tYadjW))
+    tYadjW = .colcenteralize(tYadjW)
     rm(Y)
     gc()
     tYadjW_colSds = matrixStats::colSds(tYadjW)
     tYadjWsc = t(t(tYadjW) / tYadjW_colSds)
     rm(tYadjW)
     gc()
-    XW = XW - matrix(colMeans(XW), nrow = nrow(XW), ncol = ncol(XW), byrow = TRUE)
+    XW = .colcenteralize(XW)
     XW_colSds = matrixStats::colSds(XW)
     XWsc = t(t(XW) / XW_colSds)
 
