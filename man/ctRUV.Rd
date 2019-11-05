@@ -4,7 +4,7 @@
 \alias{ctRUV}
 \title{Remove Unwanted Variations prior to applying ctassoc}
 \usage{
-ctRUV(X, W, Y, C = NULL, method = "PCA")
+ctRUV(X, W, Y, C = NULL, method = "PCA", nPC = NULL)
 }
 \arguments{
 \item{X}{Matrix (or vector) of phenotypes; samples x phenotype(s).}
@@ -17,6 +17,9 @@ ctRUV(X, W, Y, C = NULL, method = "PCA")
 X, W, Y, C should be numeric.}
 
 \item{method}{"PCA" or "SVA"}
+
+\item{nPC}{Number of PCs to be regarded as unwanted variation.
+If NULL, automatically computed by the Auer-Gervini approach.}
 }
 \value{
 Y adjusted for the unwanted variations.
