@@ -475,22 +475,22 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA") {
     # First regress out the intercepts,
     # because all variables are regularized in the ridge package.
     if (is.null(C)) {
-      tYadjXW = lm(y ~ 0 + x,
+      tYadjW = lm(y ~ 0 + x,
                    data = list(y = t(Y), x = W))$residuals
     } else {
-      tYadjXW = lm(y ~ x,
+      tYadjW = lm(y ~ x,
                    data = list(y = t(Y), x = cbind(W, C)))$residuals
     }
     rm(Y)
     gc()
     batchsize = num.cores * chunk.size
-    totalsize = ncol(tYadjXW)
+    totalsize = ncol(tYadjW)
     nbatches = ceiling(totalsize/batchsize)
-    tYadjXWff = ff::ff(
-      tYadjXW,
-      dim = dim(tYadjXW),
-      dimnames = dimnames(tYadjXW))
-    rm(tYadjXW)
+    tYadjWff = ff::ff(
+      tYadjW,
+      dim = dim(tYadjW),
+      dimnames = dimnames(tYadjW))
+    rm(tYadjW)
     gc()
     result = list()
     pb = txtProgressBar(max = nbatches, style = 3)
@@ -499,7 +499,7 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA") {
         result,
         parApply(
           cl = cl,
-          tYadjXWff[, seq(1 + i * batchsize,
+          tYadjWff[, seq(1 + i * batchsize,
                           min((i+1) * batchsize, totalsize))],
           2,
           function (y, XW) {
@@ -530,7 +530,7 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA") {
       setTxtProgressBar(pb, i + 1)
     }
     close(pb)
-    ff::delete(tYadjXWff)
+    ff::delete(tYadjWff)
     gc()
     result = dplyr::as_tibble(data.table::rbindlist(result, idcol="response"))
     result$statistic = sign(result$estimate) * result$statistic
