@@ -42,8 +42,8 @@
 #' @param Y Matrix (or vector) of bulk omics measurements; probes x samples.
 #' @param C Matrix (or vector) of covariates; samples x covariate(s).
 #' X, W, Y, C should be numeric.
-#' @param test Statistical test to apply; either \code{reducedrankridge},
-#' \code{ridge}, \code{full} or \code{marginal}.
+#' @param test Statistical test to apply; either \code{"reducedrankridge"},
+#' \code{"ridge"}, \code{"full"} or \code{"marginal"}.
 #' @param num.cores Number of CPU cores to use.
 #' Full and marginal tests are run in serial, thus num.cores is ignored.
 #' @param chunk.size The size of job for a CPU core in one batch.
@@ -81,7 +81,8 @@
 #' @importFrom R.utils withTimeout
 #' @importFrom tidyr pivot_longer
 #' @export
-ctassoc = function (X, W, Y, C = NULL, test = "ridge",
+ctassoc = function (X, W, Y, C = NULL,
+                    test = "ridge",
                     # alpha = 0,
                     # lower.limit = NULL,
                     # upper.limit = NULL,
@@ -96,10 +97,10 @@ ctassoc = function (X, W, Y, C = NULL, test = "ridge",
   if (!is.null(C)) {
     C = .as.matrix(C, d = "vertical", nam = "C")
   }
-  .check_input(X, W, Y)
+  .check_input(X, W, Y, C)
   X = .colcenteralize(X)
   switch(test, "reducedrankridge" = {
-    .full_assoc(X, W, Y,
+    .full_assoc(X, W, Y, C,
                 test = test,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
@@ -109,19 +110,20 @@ ctassoc = function (X, W, Y, C = NULL, test = "ridge",
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   # }, "glmnet" = {
-  #   .full_assoc(X, W, Y, test,
+  #   .full_assoc(X, W, Y, C,
+  #               test = test,
   #               alpha = alpha,
   #               lower.limit = lower.limit,
   #               upper.limit = upper.limit,
   #               num.cores = num.cores,
   #               chunk.size = chunk.size)
   }, "full" = {
-    .full_assoc(X, W, Y,
+    .full_assoc(X, W, Y, C,
                 test = test,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   }, "marginal" = {
-    .marginal_assoc(X, W, Y)
+    .marginal_assoc(X, W, Y, C)
   })
 }
 
@@ -141,25 +143,27 @@ ctassoc = function (X, W, Y, C = NULL, test = "ridge",
 #' @param Y Matrix (or vector) of bulk omics measurements; probes x samples.
 #' @param C Matrix (or vector) of covariates; samples x covariate(s).
 #' X, W, Y, C should be numeric.
-#' @param method "PCA" or "SVA"
+#' @param method \code{"PCA"} or \code{"SVA"}
 #' @param nPC Number of PCs to be regarded as unwanted variation.
-#' If NULL, automatically computed by the Auer-Gervini approach.
+#' If \code{NULL}, automatically computed by the Auer-Gervini approach.
 #' @return Y adjusted for the unwanted variations.
 #' @seealso ctassoc
 #' @export
-ctRUV = function (X, W, Y, C = NULL, method = "PCA", nPC = NULL) {
-  X = .as.matrix(X, d = "vertical")
-  W = .as.matrix(W, d = "vertical")
+ctRUV = function (X, W, Y, C = NULL,
+                  method = "PCA",
+                  nPC = NULL) {
+  X = .as.matrix(X, d = "vertical", nam = "X")
+  W = .as.matrix(W, d = "vertical", nam = "W")
   Y = .as.matrix(Y, d = "horizontal", nam = "Y")
   if (!is.null(C)) {
-    C = .as.matrix(C, d = "vertical")
+    C = .as.matrix(C, d = "vertical", nam = "C")
   }
-  .check_input(X, W, Y)
+  .check_input(X, W, Y, C)
   X = .colcenteralize(X)
   X1W = as.matrix(do.call(cbind, apply(W, 2, function(W_h) {cbind(as.data.frame(X), 1) * W_h})))
   switch(method, "PCA" = {
     if (is.null(C)) {
-      YadjX1W = t(lm(y ~ 0 + x,
+      YadjX1W = t(lm(y ~ x,
                      data = list(y = t(Y), x = X1W))$residuals)
     } else {
       YadjX1W = t(lm(y ~ x,
@@ -179,16 +183,25 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA", nPC = NULL) {
         dd = c(nrow(s$u), nrow(s$v))))
     }
     inform(paste0("Top ", nPC, " PC(s) are regarded as unwanted variation."))
-    s$d[min(nPC+1, length(s$d)):length(s$d)] = 0
+    if (nPC < length(s$d)) {
+      s$d[(nPC + 1):length(s$d)] = 0
+    }
     D = diag(s$d)
     Y = Y - s$u %*% D %*% t(s$v)
     rm(s, D)
     gc()
   }, "SVA" = {
-    mod = model.matrix(formula(paste(c("~ 0", colnames(X1W)), collapse = " + ")),
-                       data = as.data.frame(X1W))
-    mod0 = model.matrix(formula(paste(c("~ 0", paste0(colnames(W), ".1")), collapse = " + ")),
-                        data = as.data.frame(X1W))
+    if (is.null(C)) {
+      mod = model.matrix(formula(paste(c("~ 0", colnames(X1W)), collapse = " + ")),
+                         data = as.data.frame(X1W))
+      mod0 = model.matrix(formula(paste(c("~ 0", paste0(colnames(W), ".1")), collapse = " + ")),
+                          data = as.data.frame(X1W))
+    } else {
+      mod = model.matrix(formula(paste(c("~ 0", colnames(X1W), colnames(C)), collapse = " + ")),
+                         data = as.data.frame(cbind(X1W, C)))
+      mod0 = model.matrix(formula(paste(c("~ 0", paste0(colnames(W), ".1"), colnames(C)), collapse = " + ")),
+                          data = as.data.frame(cbind(X1W, C)))
+    }
     sv = sva::sva(Y,
                   mod,
                   mod0,
@@ -221,18 +234,21 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA", nPC = NULL) {
 }
 
 .colcenteralize = function (m) {
-  m -	matrix(colMeans(m, na.rm=TRUE),
+  m -	matrix(colMeans(m, na.rm = TRUE),
              nrow = nrow(m),
              ncol = ncol(m),
              byrow = TRUE)
 }
 
-.check_input = function (X, W, Y) {
+.check_input = function (X, W, Y, C) {
   if (ncol(Y) != nrow(X)) {
     abort("Error: ncol(Y) must equal nrow(X)")
   }
   if (ncol(Y) != nrow(W)) {
     abort("Error: ncol(Y) must equal nrow(W)")
+  }
+  if (!is.null(C) && ncol(Y) != nrow(C)) {
+    abort("Error: ncol(Y) must equal nrow(C)")
   }
   if (ncol(Y) < ncol(X) * ncol(W)) {
     abort("Error: too few observations; ncol(Y) must be at least ncol(X) * ncol(W)")
@@ -240,31 +256,36 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA", nPC = NULL) {
   return(0)
 }
 
-.marginal_assoc = function (X, W, Y) {
+.marginal_assoc = function (X, W, Y, C) {
   inform("Linear regression, for each cell type")
   Y = t(Y)
   # Avoid parApply, because each process stores Y in memory.
   result = apply(
     W,
     2,
-    function (W_h, X, W, Y) {
+    function (W_h, X, W, Y, C) {
       cat(".")
       # DEPRECATED; can be heavily biased
       # Xweighted = cbind(X, 1) * W_h
       # res = broom::tidy(lm(y ~ x,
       #                      data = list(y = Y, x = as.matrix(Xweighted))))
-      Xweighted = cbind(W, X * W_h)
+      if (is.null(C)) {
+        Xweighted = cbind(W, X * W_h)
+      } else {
+        Xweighted = cbind(W, X * W_h, C)
+      }
       res = broom::tidy(lm(y ~ 0 + x,
                            data = list(y = Y, x = Xweighted)))
       res$term = sub("^x", "", res$term)
-      return(list(coefficients=res)) },
-    X, W, Y)
+      return(list(coefficients = res)) },
+    X, W, Y, C)
   cat("\n")
   names(result) = colnames(W)
   return(result)
 }
 
-.full_assoc = function (X, W, Y, C, test,
+.full_assoc = function (X, W, Y, C,
+                        test,
                         alpha,
                         lower.limit,
                         upper.limit,
@@ -294,8 +315,13 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA", nPC = NULL) {
 
   switch(test, "full" = { # --------------------------------
     inform("Linear regression ...")
-    result = broom::tidy(lm(y ~ 0 + x,
-                            data = list(y = t(Y), x = X1W)))
+    if (is.null(C)) {
+      result = broom::tidy(lm(y ~ 0 + x,
+                              data = list(y = t(Y), x = X1W)))
+    } else {
+      result = broom::tidy(lm(y ~ 0 + x,
+                              data = list(y = t(Y), x = cbind(X1W, C))))
+    }
     result$term = sub("^x", "", result$term)
     result = dplyr::rename(result, celltypeterm = term)
 
@@ -487,11 +513,11 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA", nPC = NULL) {
     # First regress out the intercepts,
     # because all variables are regularized in the ridge package.
     if (is.null(C)) {
-      tYadjW = lm(y ~ 0 + x,
-                   data = list(y = t(Y), x = W))$residuals
+      tYadjW = lm(y ~ x,
+                  data = list(y = t(Y), x = W))$residuals
     } else {
       tYadjW = lm(y ~ x,
-                   data = list(y = t(Y), x = cbind(W, C)))$residuals
+                  data = list(y = t(Y), x = cbind(W, C)))$residuals
     }
     rm(Y)
     gc()
@@ -512,7 +538,7 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA", nPC = NULL) {
         parApply(
           cl = cl,
           tYadjWff[, seq(1 + i * batchsize,
-                          min((i+1) * batchsize, totalsize))],
+                         min((i+1) * batchsize, totalsize))],
           2,
           function (y, XW) {
             # ridge occaisionaly takes very long time
@@ -664,5 +690,5 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA", nPC = NULL) {
   result = dplyr::select(
     result,
     c(response, celltype, term, estimate, statistic, p.value))
-  return(list(coefficients=result))
+  return(list(coefficients = result))
 }
