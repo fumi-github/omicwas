@@ -12,7 +12,7 @@ ctassoc(X, W, Y, C = NULL, test = "ridge", num.cores = 1,
 
 \item{W}{Matrix of proportion of cell types; samples x cell types.}
 
-\item{Y}{Matrix of bulk omics measurements; probes x samples.}
+\item{Y}{Matrix (or vector) of bulk omics measurements; probes x samples.}
 
 \item{C}{Matrix (or vector) of covariates; samples x covariate(s).
 X, W, Y, C should be numeric.}
