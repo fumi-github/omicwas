@@ -216,14 +216,14 @@ ctRUV = function (X, W, Y, C = NULL, method = "PCA") {
 }
 
 .check_input = function (X, W, Y) {
-  if (!is.matrix(Y)) {
-    abort("Error: Y must be a matrix.")
+  if (ncol(Y) != nrow(X)) {
+    abort("Error: ncol(Y) must equal nrow(X)")
   }
   if (ncol(Y) != nrow(W)) {
     abort("Error: ncol(Y) must equal nrow(W)")
   }
-  if (ncol(Y) != nrow(X)) {
-    abort("Error: ncol(Y) must equal nrow(X)")
+  if (ncol(Y) < ncol(X) * ncol(W)) {
+    abort("Error: too few observations; ncol(Y) must be at least ncol(X) * ncol(W)")
   }
   return(0)
 }
