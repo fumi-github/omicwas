@@ -135,7 +135,7 @@ ctassoc = function (X, W, Y, C = NULL,
 #' function is fitted, and the residual is computed.
 #' For the residuals over all CpG sites, the principal components (PCs)
 #' are computed.
-#' The top ten PCs are regarded as the unwanted variations,
+#' The top PCs are regarded as the unwanted variations,
 #' and subtracted from \code{Y}.
 #'
 #' @param X Matrix (or vector) of phenotypes; samples x phenotype(s).
