@@ -78,6 +78,9 @@ rrs.fit <- function(Y,
     error = function(e)
       3) == 3) {
     A <- svdXC$v[, 1:nrank]
+    if (nrank == 1) {
+      A = matrix(A, ncol = 1)
+    }
     Ad <- (svdXC$d[1:nrank]) ^ 2
   } else{
     ypy.svd <- FALSE
@@ -88,6 +91,9 @@ rrs.fit <- function(Y,
     SS <- (SS + t(SS)) / 2
     eigenSS <- eigen(SS, symmetric = TRUE)
     A <- as.matrix(eigenSS$vectors[, 1:nrank])
+    if (nrank == 1) {
+      A = matrix(A, ncol = 1)
+    }
     Ad <- eigenSS$values[1:nrank]
   }
 
