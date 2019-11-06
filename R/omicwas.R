@@ -327,8 +327,13 @@ ctRUV = function (X, W, Y, C = NULL,
 
   }, "reducedrankridge" = { # -----------------------------------------
     inform("Reduced-rank ridge regression ...")
-    tYadjW = lm(y ~ 0 + x,
-                data = list(y = t(Y), x = W))$residuals
+    if (is.null(C)) {
+      tYadjW = lm(y ~ x,
+                  data = list(y = t(Y), x = W))$residuals
+    } else {
+      tYadjW = lm(y ~ x,
+                  data = list(y = t(Y), x = cbind(W, C)))$residuals
+    }
     tYadjW = .colcenteralize(tYadjW)
     rm(Y)
     gc()
