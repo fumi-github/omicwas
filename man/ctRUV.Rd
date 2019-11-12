@@ -7,13 +7,13 @@
 ctRUV(X, W, Y, C = NULL, method = "PCA", nPC = NULL)
 }
 \arguments{
-\item{X}{Matrix (or vector) of phenotypes; samples x phenotype(s).}
+\item{X}{Matrix (or vector) of traits; samples x traits.}
 
 \item{W}{Matrix of proportion of cell types; samples x cell types.}
 
-\item{Y}{Matrix (or vector) of bulk omics measurements; probes x samples.}
+\item{Y}{Matrix (or vector) of bulk omics measurements; markers x samples.}
 
-\item{C}{Matrix (or vector) of covariates; samples x covariate(s).
+\item{C}{Matrix (or vector) of covariates; samples x covariates.
 X, W, Y, C should be numeric.}
 
 \item{method}{\code{"PCA"} or \code{"SVA"}}
@@ -28,9 +28,9 @@ Y adjusted for the unwanted variations.
 Remove Unwanted Variations prior to applying ctassoc
 }
 \details{
-First, for each CpG site, the full linear model of the \code{ctassoc}
+First, for each marker, the full linear model of the \code{ctassoc}
 function is fitted, and the residual is computed.
-For the residuals over all CpG sites, the principal components (PCs)
+For the residuals over all markers, the principal components (PCs)
 are computed.
 The top PCs are regarded as the unwanted variations,
 and subtracted from \code{Y}.

@@ -8,13 +8,13 @@ ctassoc(X, W, Y, C = NULL, test = "ridge", num.cores = 1,
   chunk.size = 1000)
 }
 \arguments{
-\item{X}{Matrix (or vector) of phenotypes; samples x phenotype(s).}
+\item{X}{Matrix (or vector) of traits; samples x traits.}
 
 \item{W}{Matrix of proportion of cell types; samples x cell types.}
 
-\item{Y}{Matrix (or vector) of bulk omics measurements; probes x samples.}
+\item{Y}{Matrix (or vector) of bulk omics measurements; markers x samples.}
 
-\item{C}{Matrix (or vector) of covariates; samples x covariate(s).
+\item{C}{Matrix (or vector) of covariates; samples x covariates.
 X, W, Y, C should be numeric.}
 
 \item{test}{Statistical test to apply; either \code{"reducedrankridge"},
@@ -36,39 +36,56 @@ Cell-Type-Specific Association Testing
 }
 \details{
 Let the indexes be
-cell type \eqn{h}, sample \eqn{i}, CpG site \eqn{j},
-and phenotype (disease state and covariates, such as age, sex) \eqn{k}.
-There are three input data, phenotype \eqn{X_i_k},
-cell type proportion \eqn{W_i_h} and
-methylation level \eqn{Y_j_i}.
+\eqn{h} for cell type, \eqn{i} for sample,
+\eqn{j} for marker (CpG site or gene),
+\eqn{k} for each trait that has cell-type-specific effect,
+and \eqn{l} for each trait that has bulk tissue effect.
+The input data are \eqn{X_i_k}, \eqn{C_i_l}, \eqn{W_i_h} and \eqn{Y_j_i},
+where \eqn{C_i_l} can be omitted.
+\eqn{X_i_k} and \eqn{C_i_l} are the two types of traits,
+showing effects that are cell-type-specific or not, respectively.
+Thus, calling \eqn{X_i_k} and \eqn{C_i_l} as "traits" and "covariates"
+gives a rough idea, but is not strictly correct.
+\eqn{W_i_h} represents the cell type proportion and
+\eqn{Y_j_i} represents the marker level,
+ such as methylation or gene expression.
 For each tissue sample, the cell type proportion \eqn{W_i_h}
 is the proportion of each cell type in the bulk tissue,
 which is measured or imputed beforehand.
-The tissue-level methylation level \eqn{Y_j_i} is measured and provided as input.
+The marker level \eqn{Y_j_i} in bulk tissue is measured and provided as input.
 
-The cell-type-specific methylation level \eqn{Z_h_j_i} is not observed
+The cell-type-specific marker level \eqn{Z_h_j_i} is not observed
 and is treated as a hidden variable.
-The parameter we estimate is
-the cell-type-specific effect of phenotype \eqn{\beta_h_j_k},
-and we also fit the cell-type-specific basal methylation level \eqn{\mu_h_j}.
+The parameters we estimate are
+the effect of cell-type-specific traits \eqn{\beta_h_j_k},
+the effect of non-specific traits \eqn{\gamma_j_l},
+and the cell-type-specific basal marker level \eqn{\mu_h_j}.
 
-We assume normal distribution for the cell-type-specific methylation level,
+We assume normal distribution for the cell-type-specific marker level,
 \deqn{Z_h_j_i ~ N(\mu_h_j + \sum_k \beta_h_j_k * X_i_k, \sigma^2_h_j).}
-Since the bulk tissue methylation level is the sum weighted by \eqn{W_i_h},
-\deqn{Y_j_i ~ N(\sum_h W_i_h {\mu_h_j + \sum_k \beta_h_j_k * X_i_k},
-      \tau^2_j + \sum_h W_i_h * \sigma^2_h_j).}
+Since the bulk tissue marker level is the sum weighted by \eqn{W_i_h},
+\deqn{Y_j_i ~ N(\sum_h W_i_h {\mu_h_j + \sum_k \beta_h_j_k * X_i_k} +
+                \sum_l \gamma_j_l C_i_l,}
+\deqn{          \tau^2_j + \sum_h W_i_h^2 * \sigma^2_h_j).}
 In practice, we replace the error term involving \eqn{\sigma^2_h_j} and
 \eqn{\tau^2_j}, simply by \eqn{\tau^2_j}.
 
 The \code{full} model is the linear regression
-\deqn{Y_j_i ~ (\sum_h \mu_h_j * W_i_h) + (\sum_h_k \beta_h_j_k * W_i_h * X_i_k) +
- error.}
-The \code{ridge} model is the ridge regression for the same equation,
-aiming to cope with multicollinearity of the independent variables.
-The \code{marginal} model tests the phenotype association only in one
+\deqn{Y_j_i ~ (\sum_h \mu_h_j * W_i_h) +
+              (\sum_h_k \beta_h_j_k * W_i_h * X_i_k) +
+              (\sum_l \gamma_j_l * C_i_l) +
+              error.}
+The \code{ridge} model aims to cope with multicollinearity of
+the interacting terms \eqn{W_i_h * X_i_k}.
+It first adjusts for \eqn{\mu_h_j} and \eqn{\gamma_j_l}
+by fitting linear regression and taking the residuals.
+Afterwards, ridge regression is used to fit \eqn{\beta_h_j_k}.
+The \code{marginal} model tests the trait association only in one
 cell type \eqn{h}, under the linear regression,
-\deqn{Y_j_i ~ (\sum_h' \mu_h'_j * W_i_h') + (\sum_k \beta_h_j_k * W_i_h * X_i_k) +
- error.}
+\deqn{Y_j_i ~ (\sum_h' \mu_h'_j * W_i_h') +
+              (\sum_k \beta_h_j_k * W_i_h * X_i_k) +
+              (\sum_l \gamma_j_l * C_i_l)
+              error.}
 }
 \examples{
 data(GSE42861small)
