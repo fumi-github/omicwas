@@ -48,7 +48,7 @@ Thus, calling \eqn{X_i_k} and \eqn{C_i_l} as "traits" and "covariates"
 gives a rough idea, but is not strictly correct.
 \eqn{W_i_h} represents the cell type proportion and
 \eqn{Y_j_i} represents the marker level,
- such as methylation or gene expression.
+such as methylation or gene expression.
 For each tissue sample, the cell type proportion \eqn{W_i_h}
 is the proportion of each cell type in the bulk tissue,
 which is measured or imputed beforehand.
