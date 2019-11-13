@@ -4,7 +4,7 @@
 \name{GSE42861small}
 \alias{GSE42861small}
 \title{Small Subset of GSE42861 Dataset From GEO}
-\format{An object of class \code{list} of length 3.}
+\format{An object of class \code{list} of length 4.}
 \source{
 \href{https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE42861}{GEO}
 }

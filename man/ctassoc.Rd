@@ -92,8 +92,9 @@ data(GSE42861small)
 X = GSE42861small$X
 Y = GSE42861small$Y
 W = GSE42861small$W
-Y = ctRUV(X, W, Y)
-result = ctassoc(X, W, Y)
+C = GSE42861small$C
+Y = ctRUV(X, W, Y, C = C)
+result = ctassoc(X, W, Y, C = C)
 result$coefficients
 
 }
