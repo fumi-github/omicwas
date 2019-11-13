@@ -258,6 +258,10 @@ ctRUV = function (X, W, Y, C = NULL,
              byrow = TRUE)
 }
 
+.rowcenteralize = function (m) {
+  m -	rowMeans(m, na.rm = TRUE)
+}
+
 .check_input = function (X, W, Y, C) {
   if (ncol(Y) != nrow(X)) {
     abort("Error: ncol(Y) must equal nrow(X)")
