@@ -11,6 +11,6 @@ library(omicwas)
 
 ?ctassoc
 
-American Society of Human Genetics (18 Oct 2019) poster:
+CSHL (14 Nov 2019) poster:
 
-http://103.253.147.127/PUBLICATIONS/191018ashg.pdf
+http://103.253.147.127/PUBLICATIONS/191114cshl.pdf
