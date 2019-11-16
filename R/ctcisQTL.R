@@ -54,7 +54,7 @@ ctcisQTL = function (X, Xpos, W, Y, Ypos, C = NULL,
   if (!is.null(C)) {
     C = .as.matrix(C, d = "vertical", nam = "C")
   }
-#  .check_input_cisQTL(X, Xpos, W, Y, Ypos, C)
+  .check_input_cisQTL(X, Xpos, W, Y, Ypos, C)
   X = .rowcenteralize(X)
 
   cl = makeCluster(num.cores)
@@ -168,4 +168,23 @@ ctcisQTL = function (X, Xpos, W, Y, Ypos, C = NULL,
   ff::delete(tYadjWff)
   gc()
   invisible(1)
+}
+
+.check_input_cisQTL = function (X, Xpos, W, Y, Ypos, C) {
+  if (ncol(Y) != ncol(X)) {
+    abort("Error: ncol(Y) must equal ncol(X)")
+  }
+  if (ncol(Y) != nrow(W)) {
+    abort("Error: ncol(Y) must equal nrow(W)")
+  }
+  if (!is.null(C) && ncol(Y) != nrow(C)) {
+    abort("Error: ncol(Y) must equal nrow(C)")
+  }
+  if (nrow(X) != length(Xpos)) {
+    abort("Error: nrow(X) must equal length(Xpos)")
+  }
+  if (nrow(Y) != length(Ypos)) {
+    abort("Error: nrow(Y) must equal length(Ypos)")
+  }
+  return(0)
 }
