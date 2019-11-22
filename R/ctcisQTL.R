@@ -33,6 +33,18 @@
 #' Full and marginal tests are run in serial, thus num.cores is ignored.
 #' @return The estimate, statistic, p.value are written to the specified file.
 #' @seealso ctRUV
+#' @examples
+#' data(GSE79262small)
+#' X    = GSE79262small$X
+#' Xpos = GSE79262small$Xpos
+#' W    = GSE79262small$W
+#' Y    = GSE79262small$Y
+#' Ypos = GSE79262small$Ypos
+#' C    = GSE79262small$C
+#' Y    = Y[seq(1, 601, 20), ] # for brevity
+#' Ypos = Ypos[seq(1, 601, 20)]
+#' ctcisQTL(X, Xpos, W, Y, Ypos, C = C,
+#'          outfile = "ctcisQTL.out.txt")
 #'
 #' @importFrom data.table rbindlist
 #' @importFrom dplyr as_tibble
