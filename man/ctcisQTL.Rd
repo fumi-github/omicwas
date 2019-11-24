@@ -53,6 +53,7 @@ the testing is limited to pairs whose position is within
 the difference specified by \code{max.pos.diff}
 In addition, a uniform hyperparameter of ridge regression is used
 for all pairs.
+We use the \link[ridge]{linearRidge} function of the ridge package.
 }
 \examples{
 data(GSE79262small)

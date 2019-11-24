@@ -65,10 +65,9 @@ We assume normal distribution for the cell-type-specific marker level,
 \deqn{Z_h_j_i ~ N(\mu_h_j + \sum_k \beta_h_j_k * X_i_k, \sigma^2_h_j).}
 Since the bulk tissue marker level is the sum weighted by \eqn{W_i_h},
 \deqn{Y_j_i ~ N(\sum_h W_i_h {\mu_h_j + \sum_k \beta_h_j_k * X_i_k} +
-                \sum_l \gamma_j_l C_i_l,}
-\deqn{          \tau^2_j + \sum_h W_i_h^2 * \sigma^2_h_j).}
-In practice, we replace the error term involving \eqn{\sigma^2_h_j} and
-\eqn{\tau^2_j}, simply by \eqn{\tau^2_j}.
+                \sum_l \gamma_j_l C_i_l, \tau^2_j).}
+Although formally, the variance comprises of components of cell type level
+and tissue level, we approximate and unify into \eqn{\tau^2_j}.
 
 The \code{full} model is the linear regression
 \deqn{Y_j_i ~ (\sum_h \mu_h_j * W_i_h) +
@@ -80,6 +79,7 @@ the interacting terms \eqn{W_i_h * X_i_k}.
 It first adjusts for \eqn{\mu_h_j} and \eqn{\gamma_j_l}
 by fitting linear regression and taking the residuals.
 Afterwards, ridge regression is used to fit \eqn{\beta_h_j_k}.
+We use the \link[ridge]{linearRidge} function of the ridge package.
 The \code{marginal} model tests the trait association only in one
 cell type \eqn{h}, under the linear regression,
 \deqn{Y_j_i ~ (\sum_h' \mu_h'_j * W_i_h') +
