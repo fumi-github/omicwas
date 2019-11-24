@@ -1,7 +1,7 @@
 Package: omicwas
 Type: Package
 Title: Cell-Type-Specific Association Testing in Bulk Omics Experiments
-Version: 0.2.0
+Version: 0.3.0
 Authors@R: person("Fumihiko", "Takeuchi", role = c("aut", "cre"),
                   email = "fumihiko@takeuchi.name")
 Description: In bulk epigenome/transcriptome experiments, molecular expression
