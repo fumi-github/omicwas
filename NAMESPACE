@@ -2,6 +2,7 @@
 
 export(ctRUV)
 export(ctassoc)
+export(ctcisQTL)
 export(rrs.fit)
 importFrom(R.utils,withTimeout)
 importFrom(broom,tidy)
