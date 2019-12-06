@@ -697,7 +697,7 @@ ctRUV = function (X, W, Y, C = NULL,
     # Note: abs(statistic/sqrt(nrow(X1W))) >> 1 occurs for term=="1"
     dplyr::mutate(statistic = sqrt(nrow(X1W))*estimate*X1WSd/YSd) %>%
     dplyr::mutate(p.value = pnorm(abs(statistic), lower.tail = FALSE)*2) %>%
-    dplyr::select(-c('YSd', 'X1WSd'))
+    dplyr::select(-c("YSd", "X1WSd"))
   }) # end switch ------------------------------
 
   inform("Summarizing result ...")
@@ -711,6 +711,6 @@ ctRUV = function (X, W, Y, C = NULL,
             c(colnames(X), "1"))]
   result = dplyr::select(
     result,
-    c(response, celltype, term, estimate, statistic, p.value))
+    c("response", "celltype", "term", "estimate", "statistic", "p.value"))
   return(list(coefficients = result))
 }
