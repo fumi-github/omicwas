@@ -40,52 +40,52 @@ Let the indexes be
 \eqn{j} for marker (CpG site or gene),
 \eqn{k} for each trait that has cell-type-specific effect,
 and \eqn{l} for each trait that has bulk tissue effect.
-The input data are \eqn{X_i_k}, \eqn{C_i_l}, \eqn{W_i_h} and \eqn{Y_j_i},
-where \eqn{C_i_l} can be omitted.
-\eqn{X_i_k} and \eqn{C_i_l} are the two types of traits,
+The input data are \eqn{X_{i k}}, \eqn{C_{i l}}, \eqn{W_{i h}} and \eqn{Y_{j i}},
+where \eqn{C_{i l}} can be omitted.
+\eqn{X_{i k}} and \eqn{C_{i l}} are the two types of traits,
 showing effects that are cell-type-specific or not, respectively.
-Thus, calling \eqn{X_i_k} and \eqn{C_i_l} as "traits" and "covariates"
+Thus, calling \eqn{X_{i k}} and \eqn{C_{i l}} as "traits" and "covariates"
 gives a rough idea, but is not strictly correct.
-\eqn{W_i_h} represents the cell type proportion and
-\eqn{Y_j_i} represents the marker level,
+\eqn{W_{i h}} represents the cell type proportion and
+\eqn{Y_{j i}} represents the marker level,
 such as methylation or gene expression.
-For each tissue sample, the cell type proportion \eqn{W_i_h}
+For each tissue sample, the cell type proportion \eqn{W_{i h}}
 is the proportion of each cell type in the bulk tissue,
 which is measured or imputed beforehand.
-The marker level \eqn{Y_j_i} in bulk tissue is measured and provided as input.
+The marker level \eqn{Y_{j i}} in bulk tissue is measured and provided as input.
 
-The cell-type-specific marker level \eqn{Z_h_j_i} is not observed
+The cell-type-specific marker level \eqn{Z_{h j i}} is not observed
 and is treated as a hidden variable.
 The parameters we estimate are
-the effect of cell-type-specific traits \eqn{\beta_h_j_k},
-the effect of non-specific traits \eqn{\gamma_j_l},
-and the cell-type-specific basal marker level \eqn{\mu_h_j}.
+the effect of cell-type-specific traits \eqn{\beta_{h j k}},
+the effect of non-specific traits \eqn{\gamma_{j l}},
+and the cell-type-specific basal marker level \eqn{\mu_{h j}}.
 
 We assume normal distribution for the cell-type-specific marker level,
-\deqn{Z_h_j_i ~ N(\mu_h_j + \sum_k \beta_h_j_k * X_i_k, \sigma^2_h_j).}
-Since the bulk tissue marker level is the sum weighted by \eqn{W_i_h},
-\deqn{Y_j_i ~ N(\sum_h W_i_h {\mu_h_j + \sum_k \beta_h_j_k * X_i_k} +
-                \sum_l \gamma_j_l C_i_l, \tau^2_j).}
+\deqn{Z_{h j i} ~ N(\mu_{h j} + \sum_k \beta_{h j k} * X_{i k}, \sigma^2_{h j}).}
+Since the bulk tissue marker level is the sum weighted by \eqn{W_{i h}},
+\deqn{Y_{j i} ~ N(\sum_h W_{i h} [\mu_{h j} + \sum_k \beta_{h j k} * X_{i k}] +
+                  \sum_l \gamma_{j l} C_{i l}, \tau^2_j).}
 Although formally, the variance comprises of components of cell type level
 and tissue level, we approximate and unify into \eqn{\tau^2_j}.
 
 The \code{full} model is the linear regression
-\deqn{Y_j_i ~ (\sum_h \mu_h_j * W_i_h) +
-              (\sum_h_k \beta_h_j_k * W_i_h * X_i_k) +
-              (\sum_l \gamma_j_l * C_i_l) +
-              error.}
+\deqn{Y_{j i} ~ (\sum_h \mu_{h j} * W_{i h}) +
+                (\sum_{h k} \beta_{h j k} * W_{i h} * X_{i k}) +
+                (\sum_l \gamma_{j l} * C_{i l}) +
+                error.}
 The \code{ridge} model aims to cope with multicollinearity of
-the interacting terms \eqn{W_i_h * X_i_k}.
-It first adjusts for \eqn{\mu_h_j} and \eqn{\gamma_j_l}
+the interacting terms \eqn{W_{i h} * X_{i k}}.
+It first adjusts for \eqn{\mu_{h j}} and \eqn{\gamma_{j l}}
 by fitting linear regression and taking the residuals.
-Afterwards, ridge regression is used to fit \eqn{\beta_h_j_k}.
+Afterwards, ridge regression is used to fit \eqn{\beta_{h j k}}.
 We use the \link[ridge]{linearRidge} function of the ridge package.
 The \code{marginal} model tests the trait association only in one
 cell type \eqn{h}, under the linear regression,
-\deqn{Y_j_i ~ (\sum_h' \mu_h'_j * W_i_h') +
-              (\sum_k \beta_h_j_k * W_i_h * X_i_k) +
-              (\sum_l \gamma_j_l * C_i_l)
-              error.}
+\deqn{Y_{j i} ~ (\sum_{h'} \mu_{h' j} * W_{i h'}) +
+                (\sum_k \beta_{h j k} * W_{i h} * X_{i k}) +
+                (\sum_l \gamma_{j l} * C_{i l})
+                error.}
 }
 \examples{
 data(GSE42861small)

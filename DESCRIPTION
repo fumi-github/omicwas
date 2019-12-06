@@ -3,7 +3,8 @@ Type: Package
 Title: Cell-Type-Specific Association Testing in Bulk Omics Experiments
 Version: 0.3.0
 Authors@R: person("Fumihiko", "Takeuchi", role = c("aut", "cre"),
-                  email = "fumihiko@takeuchi.name")
+                  email = "fumihiko@takeuchi.name",
+                  comment = c(ORCID = "0000-0003-3185-5661"))
 Description: In bulk epigenome/transcriptome experiments, molecular expression
     is measured in a tissue, which is a mixture of multiple types of cells.
     This package tests association of a disease/phenotype with a molecular marker
