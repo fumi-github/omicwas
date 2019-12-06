@@ -81,21 +81,13 @@
 #'
 #' @importFrom broom tidy
 #' @importFrom data.table rbindlist
-#' @importFrom dplyr as_tibble
-#' @importFrom dplyr left_join
-#' @importFrom dplyr mutate
-#' @importFrom dplyr rename
-#' @importFrom dplyr select
-#' @importFrom glmnet cv.glmnet
-#' @importFrom glmnet glmnet
+#' @importFrom dplyr as_tibble left_join mutate rename select
+#' @importFrom glmnet cv.glmnet glmnet
 #' @importFrom magrittr %>%
 #' @importFrom matrixStats colSds
-#' @importFrom parallel makeCluster
-#' @importFrom parallel parApply
-#' @importFrom parallel stopCluster
+#' @importFrom parallel makeCluster parApply stopCluster
 #' @importFrom ridge linearRidge
-#' @importFrom rlang abort
-#' @importFrom rlang inform
+#' @importFrom rlang abort inform
 #' @importFrom R.utils withTimeout
 #' @importFrom stats lm pnorm quantile
 #' @importFrom tidyr pivot_longer

@@ -49,9 +49,7 @@
 #'
 #' @importFrom data.table rbindlist
 #' @importFrom dplyr as_tibble
-#' @importFrom parallel makeCluster
-#' @importFrom parallel parApply
-#' @importFrom parallel stopCluster
+#' @importFrom parallel makeCluster parApply stopCluster
 #' @importFrom ridge linearRidge
 #' @importFrom rlang inform
 #' @importFrom stats lm median
