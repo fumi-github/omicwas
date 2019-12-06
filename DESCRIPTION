@@ -11,6 +11,8 @@ Description: In bulk epigenome/transcriptome experiments, molecular expression
     The proportion of cell types in each sample needs to be given as input.
     The package is applicable to epigenome-wide association study (EWAS) of
     microarray experiments.
+URL: https://github.com/fumi-github/omicwas
+BugReports: https://github.com/fumi-github/omicwas/issues
 Depends: R (>= 3.6.0)
 License: GPL-3
 Encoding: UTF-8

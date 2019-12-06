@@ -97,7 +97,9 @@
 #' @importFrom rlang abort
 #' @importFrom rlang inform
 #' @importFrom R.utils withTimeout
+#' @importFrom stats lm pnorm quantile
 #' @importFrom tidyr pivot_longer
+#' @importFrom utils getFromNamespace setTxtProgressBar txtProgressBar
 #' @export
 ctassoc = function (X, W, Y, C = NULL,
                     test = "ridge",
@@ -166,6 +168,7 @@ ctassoc = function (X, W, Y, C = NULL,
 #' If \code{NULL}, automatically computed by the Auer-Gervini approach.
 #' @return Y adjusted for the unwanted variations.
 #' @seealso ctassoc
+#' @importFrom stats formula lm model.matrix
 #' @export
 ctRUV = function (X, W, Y, C = NULL,
                   method = "PCA",

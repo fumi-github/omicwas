@@ -54,6 +54,8 @@
 #' @importFrom parallel stopCluster
 #' @importFrom ridge linearRidge
 #' @importFrom rlang inform
+#' @importFrom stats lm median
+#' @importFrom utils getFromNamespace setTxtProgressBar txtProgressBar write.table
 #' @export
 ctcisQTL = function (X, Xpos, W, Y, Ypos, C = NULL,
                      max.pos.diff = 1e6,
