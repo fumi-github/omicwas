@@ -66,6 +66,7 @@ for all pairs.
 We use the \link[ridge]{linearRidge} function of the ridge package.
 }
 \examples{
+\dontrun{
 data(GSE79262small)
 X    = GSE79262small$X
 Xpos = GSE79262small$Xpos
@@ -77,6 +78,7 @@ Y    = Y[seq(1, 601, 20), ] # for brevity
 Ypos = Ypos[seq(1, 601, 20)]
 ctcisQTL(X, Xpos, W, Y, Ypos, C = C,
          outfile = "ctcisQTL.out.txt")
+}
 
 }
 \seealso{

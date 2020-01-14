@@ -35,6 +35,7 @@
 #' @return The estimate, statistic, p.value are written to the specified file.
 #' @seealso ctRUV
 #' @examples
+#' \dontrun{
 #' data(GSE79262small)
 #' X    = GSE79262small$X
 #' Xpos = GSE79262small$Xpos
@@ -46,6 +47,7 @@
 #' Ypos = Ypos[seq(1, 601, 20)]
 #' ctcisQTL(X, Xpos, W, Y, Ypos, C = C,
 #'          outfile = "ctcisQTL.out.txt")
+#' }
 #'
 #' @importFrom data.table rbindlist
 #' @importFrom dplyr as_tibble

@@ -70,6 +70,7 @@
 #' The element gives the estimate, statistic, p.value in tibble format.
 #' @seealso ctRUV
 #' @examples
+#' \dontrun{
 #' data(GSE42861small)
 #' X = GSE42861small$X
 #' Y = GSE42861small$Y
@@ -78,6 +79,7 @@
 #' Y = ctRUV(X, W, Y, C = C)
 #' result = ctassoc(X, W, Y, C = C)
 #' result$coefficients
+#' }
 #'
 #' @importFrom broom tidy
 #' @importFrom data.table rbindlist

@@ -87,6 +87,7 @@ cell type \eqn{h}, under the linear regression,
                 error.}
 }
 \examples{
+\dontrun{
 data(GSE42861small)
 X = GSE42861small$X
 Y = GSE42861small$Y
@@ -95,6 +96,7 @@ C = GSE42861small$C
 Y = ctRUV(X, W, Y, C = C)
 result = ctassoc(X, W, Y, C = C)
 result$coefficients
+}
 
 }
 \seealso{
