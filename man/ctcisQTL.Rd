@@ -4,8 +4,18 @@
 \alias{ctcisQTL}
 \title{Cell-Type-Specific QTL analysis}
 \usage{
-ctcisQTL(X, Xpos, W, Y, Ypos, C = NULL, max.pos.diff = 1e+06,
-  nPC = NULL, outfile = "ctcisQTL.out.txt", num.cores = 1)
+ctcisQTL(
+  X,
+  Xpos,
+  W,
+  Y,
+  Ypos,
+  C = NULL,
+  max.pos.diff = 1e+06,
+  nPC = NULL,
+  outfile = "ctcisQTL.out.txt",
+  num.cores = 1
+)
 }
 \arguments{
 \item{X}{Matrix (or vector) of SNP genotypes; SNPs x samples.}

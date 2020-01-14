@@ -4,8 +4,7 @@
 \alias{rrs.fit}
 \title{Fitting reduced-rank ridge regression with given rank and shrinkage penalty}
 \usage{
-rrs.fit(Y, X, nrank = min(ncol(Y), ncol(X)), lambda = 1,
-  coefSVD = FALSE)
+rrs.fit(Y, X, nrank = min(ncol(Y), ncol(X)), lambda = 1, coefSVD = FALSE)
 }
 \arguments{
 \item{Y}{a matrix of response (n by q)}

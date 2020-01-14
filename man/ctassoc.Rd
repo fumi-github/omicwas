@@ -4,8 +4,7 @@
 \alias{ctassoc}
 \title{Cell-Type-Specific Association Testing}
 \usage{
-ctassoc(X, W, Y, C = NULL, test = "ridge", num.cores = 1,
-  chunk.size = 1000)
+ctassoc(X, W, Y, C = NULL, test = "ridge", num.cores = 1, chunk.size = 1000)
 }
 \arguments{
 \item{X}{Matrix (or vector) of traits; samples x traits.}

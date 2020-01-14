@@ -87,7 +87,7 @@
 #' @importFrom matrixStats colSds
 #' @importFrom parallel makeCluster parApply stopCluster
 #' @importFrom ridge linearRidge
-#' @importFrom rlang abort inform
+#' @importFrom rlang .data abort inform
 #' @importFrom R.utils withTimeout
 #' @importFrom stats lm pnorm quantile
 #' @importFrom tidyr pivot_longer
@@ -340,7 +340,7 @@ ctRUV = function (X, W, Y, C = NULL,
                               data = list(y = t(Y), x = cbind(X1W, C))))
     }
     result$term = sub("^x", "", result$term)
-    result = dplyr::rename(result, celltypeterm = term)
+    result = dplyr::rename(result, celltypeterm = .data$term)
 
   }, "reducedrankridge" = { # -----------------------------------------
     inform("Reduced-rank ridge regression ...")
@@ -460,20 +460,20 @@ ctRUV = function (X, W, Y, C = NULL,
     estimate$response = colnames(tYadjWsc)
     estimate = tidyr::pivot_longer(
       estimate,
-      cols = -response,
+      cols = - .data$response,
       names_to = "celltypeterm",
       values_to = "estimate")
     SE = as.data.frame(t(SE))
     SE$response = colnames(tYadjWsc)
     SE = tidyr::pivot_longer(
       SE,
-      cols = -response,
+      cols = - .data$response,
       names_to = "celltypeterm",
       values_to = "SE")
     result = estimate %>%
       left_join(SE, by = c("response", "celltypeterm")) %>%
       dplyr::mutate(statistic = estimate/SE) %>%
-      dplyr::mutate(p.value = pnorm(abs(statistic), lower.tail = FALSE)*2) %>%
+      dplyr::mutate(p.value = pnorm(abs(.data$statistic), lower.tail = FALSE)*2) %>%
       dplyr::select(-SE)
 
     ### NOT USED cca or rgcca
@@ -671,7 +671,7 @@ ctRUV = function (X, W, Y, C = NULL,
   result$response = rownames(result)
   result = tidyr::pivot_longer(
     result,
-    cols = -response,
+    cols = - .data$response,
     names_to = "celltypeterm",
     values_to = "estimate")
 
@@ -695,8 +695,8 @@ ctRUV = function (X, W, Y, C = NULL,
                          stringsAsFactors = FALSE),
               by="celltypeterm") %>%
     # Note: abs(statistic/sqrt(nrow(X1W))) >> 1 occurs for term=="1"
-    dplyr::mutate(statistic = sqrt(nrow(X1W))*estimate*X1WSd/YSd) %>%
-    dplyr::mutate(p.value = pnorm(abs(statistic), lower.tail = FALSE)*2) %>%
+    dplyr::mutate(statistic = sqrt(nrow(X1W))*estimate*.data$X1WSd/YSd) %>%
+    dplyr::mutate(p.value = pnorm(abs(.data$statistic), lower.tail = FALSE)*2) %>%
     dplyr::select(-c("YSd", "X1WSd"))
   }) # end switch ------------------------------
 
