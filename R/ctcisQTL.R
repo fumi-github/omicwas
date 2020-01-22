@@ -29,13 +29,15 @@
 #' @param nPC A hyperparameter that (indirectly) specifies the penalty
 #' for ridge regression.  If \code{NULL}, it is inferred from the data.
 #' A unique hyperparameter is applied to all SNP-marker pairs.
+#' @param outdir Output directory.
 #' @param outfile Output file.
 #' @param num.cores Number of CPU cores to use.
 #' Full and marginal tests are run in serial, thus num.cores is ignored.
+#' @param seed Seed for random number generation.
 #' @return The estimate, statistic, p.value are written to the specified file.
 #' @seealso ctRUV
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' data(GSE79262small)
 #' X    = GSE79262small$X
 #' Xpos = GSE79262small$Xpos
@@ -45,8 +47,7 @@
 #' C    = GSE79262small$C
 #' Y    = Y[seq(1, 601, 20), ] # for brevity
 #' Ypos = Ypos[seq(1, 601, 20)]
-#' ctcisQTL(X, Xpos, W, Y, Ypos, C = C,
-#'          outfile = "ctcisQTL.out.txt")
+#' ctcisQTL(X, Xpos, W, Y, Ypos, C = C)
 #' }
 #'
 #' @importFrom data.table rbindlist
@@ -60,8 +61,10 @@
 ctcisQTL = function (X, Xpos, W, Y, Ypos, C = NULL,
                      max.pos.diff = 1e6,
                      nPC = NULL,
+                     outdir = tempdir(),
                      outfile = "ctcisQTL.out.txt",
-                     num.cores = 1) {
+                     num.cores = 1,
+                     seed = 123) {
 
   X = .as.matrix(X, d = "horizontal", nam = "X")
   W = .as.matrix(W, d = "vertical", nam = "W")
@@ -91,7 +94,7 @@ ctcisQTL = function (X, Xpos, W, Y, Ypos, C = NULL,
   if (is.null(nPC)) {
     inform("Scanning hyperparameters ...")
     result = c()
-    set.seed(123)
+    set.seed(seed)
     if (J < 50) {
       Jsample = 1:J
     } else {
@@ -124,9 +127,10 @@ ctcisQTL = function (X, Xpos, W, Y, Ypos, C = NULL,
                 " principal component(s)."))
 
   inform("Ridge regression ...")
+  inform(paste0("Writing output to ", file.path(outdir, outfile)))
   write.table(matrix(c("response", "term", "celltype",
                        "estimate", "statistic", "p.value"), nrow = 1),
-              outfile,
+              file.path(outdir, outfile),
               sep = "\t",
               quote = FALSE,
               row.names = FALSE,
@@ -171,7 +175,7 @@ ctcisQTL = function (X, Xpos, W, Y, Ypos, C = NULL,
     result = cbind(data.frame(response = colnames(tYadjWff)[j]),
                    result)
     write.table(result,
-                outfile,
+                file.path(outdir, outfile),
                 sep = "\t",
                 quote = FALSE,
                 row.names = FALSE,

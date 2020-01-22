@@ -13,8 +13,10 @@ ctcisQTL(
   C = NULL,
   max.pos.diff = 1e+06,
   nPC = NULL,
+  outdir = tempdir(),
   outfile = "ctcisQTL.out.txt",
-  num.cores = 1
+  num.cores = 1,
+  seed = 123
 )
 }
 \arguments{
@@ -41,10 +43,14 @@ separately for each chromosome.}
 for ridge regression.  If \code{NULL}, it is inferred from the data.
 A unique hyperparameter is applied to all SNP-marker pairs.}
 
+\item{outdir}{Output directory.}
+
 \item{outfile}{Output file.}
 
 \item{num.cores}{Number of CPU cores to use.
 Full and marginal tests are run in serial, thus num.cores is ignored.}
+
+\item{seed}{Seed for random number generation.}
 }
 \value{
 The estimate, statistic, p.value are written to the specified file.
@@ -66,7 +72,7 @@ for all pairs.
 We use the \link[ridge]{linearRidge} function of the ridge package.
 }
 \examples{
-\dontrun{
+\donttest{
 data(GSE79262small)
 X    = GSE79262small$X
 Xpos = GSE79262small$Xpos
@@ -76,8 +82,7 @@ Ypos = GSE79262small$Ypos
 C    = GSE79262small$C
 Y    = Y[seq(1, 601, 20), ] # for brevity
 Ypos = Ypos[seq(1, 601, 20)]
-ctcisQTL(X, Xpos, W, Y, Ypos, C = C,
-         outfile = "ctcisQTL.out.txt")
+ctcisQTL(X, Xpos, W, Y, Ypos, C = C)
 }
 
 }

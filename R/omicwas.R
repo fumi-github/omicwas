@@ -66,11 +66,12 @@
 #' @param chunk.size The size of job for a CPU core in one batch.
 #' If you have many cores but limited memory, and there is a memory failure,
 #' decrease num.cores and/or chunk.size.
+#' @param seed Seed for random number generation.
 #' @return A list with one element, which is named "coefficients".
 #' The element gives the estimate, statistic, p.value in tibble format.
 #' @seealso ctRUV
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' data(GSE42861small)
 #' X = GSE42861small$X
 #' Y = GSE42861small$Y
@@ -101,7 +102,8 @@ ctassoc = function (X, W, Y, C = NULL,
                     # lower.limit = NULL,
                     # upper.limit = NULL,
                     num.cores = 1,
-                    chunk.size = 1000) {
+                    chunk.size = 1000,
+                    seed = 123) {
   if (!(test %in% c("reducedrankridge", "ridge", "full", "marginal"))) {
     abort('Error: test must be either "reducedrankridge", "ridge", "full", "marginal"')
   }
@@ -135,7 +137,8 @@ ctassoc = function (X, W, Y, C = NULL,
     .full_assoc(X, W, Y, C,
                 test = test,
                 num.cores = num.cores,
-                chunk.size = chunk.size)
+                chunk.size = chunk.size,
+                seed = seed)
   }, "marginal" = {
     .marginal_assoc(X, W, Y, C)
   })
@@ -309,7 +312,8 @@ ctRUV = function (X, W, Y, C = NULL,
                         lower.limit,
                         upper.limit,
                         num.cores,
-                        chunk.size) {
+                        chunk.size,
+                        seed) {
   # alpha: 0 for Ridge regression; 1 for Lasso; inbetween for elastic net
   # lower.limit, upper.limit: lowest and highest expression level
   # (in any cell type).
@@ -365,7 +369,7 @@ ctRUV = function (X, W, Y, C = NULL,
     XWsc = t(t(XW) / XW_colSds)
 
     if (ncol(tYadjWsc) > 1e4) {
-      set.seed(1)
+      set.seed(seed)
       tYsmall = tYadjWsc[, sample(ncol(tYadjWsc), 1e4)]
     } else {
       tYsmall = tYadjWsc
@@ -417,7 +421,7 @@ ctRUV = function (X, W, Y, C = NULL,
     inform("Jackknife estimation of standard error ...")
     imax = 20
     groupassign = rep(1:imax, ceiling(nrow(tYadjWsc)/imax))[1:nrow(tYadjWsc)]
-    set.seed(1)
+    set.seed(seed)
     groupassign = groupassign[sample(length(groupassign))]
     coef_jk_ff = ff::ff(
       0,
@@ -620,7 +624,7 @@ ctRUV = function (X, W, Y, C = NULL,
   if (nrow(Y) < samplingsize) {
     Ysmall = Y
   } else {
-    set.seed(123)
+    set.seed(seed)
     Ysmall = Y[sample(nrow(Y), samplingsize), ]
   }
   opt_lambda_list_small =
@@ -629,7 +633,7 @@ ctRUV = function (X, W, Y, C = NULL,
       Ysmall,
       1,
       function (y, X1W, alpha, penalty.factor, lower.limits, upper.limits) {
-        set.seed(123)
+        set.seed(seed)
         cv_fit = glmnet::cv.glmnet(
           x = X1W,
           y = y,
@@ -657,7 +661,7 @@ ctRUV = function (X, W, Y, C = NULL,
       function (ly, X1W, alpha, penalty.factor, lower.limits, upper.limits) {
         l = ly[1]
         y = ly[-1]
-        set.seed(123)
+        set.seed(seed)
         mod = glmnet::glmnet(
           x = X1W,
           y = y,

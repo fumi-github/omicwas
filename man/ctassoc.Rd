@@ -4,7 +4,16 @@
 \alias{ctassoc}
 \title{Cell-Type-Specific Association Testing}
 \usage{
-ctassoc(X, W, Y, C = NULL, test = "ridge", num.cores = 1, chunk.size = 1000)
+ctassoc(
+  X,
+  W,
+  Y,
+  C = NULL,
+  test = "ridge",
+  num.cores = 1,
+  chunk.size = 1000,
+  seed = 123
+)
 }
 \arguments{
 \item{X}{Matrix (or vector) of traits; samples x traits.}
@@ -25,6 +34,8 @@ Full and marginal tests are run in serial, thus num.cores is ignored.}
 \item{chunk.size}{The size of job for a CPU core in one batch.
 If you have many cores but limited memory, and there is a memory failure,
 decrease num.cores and/or chunk.size.}
+
+\item{seed}{Seed for random number generation.}
 }
 \value{
 A list with one element, which is named "coefficients".
@@ -87,7 +98,7 @@ cell type \eqn{h}, under the linear regression,
                 error.}
 }
 \examples{
-\dontrun{
+\donttest{
 data(GSE42861small)
 X = GSE42861small$X
 Y = GSE42861small$Y
