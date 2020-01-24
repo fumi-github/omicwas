@@ -17,6 +17,7 @@ Description: In bulk epigenome/transcriptome experiments, molecular expression
 URL: https://github.com/fumi-github/omicwas
 BugReports: https://github.com/fumi-github/omicwas/issues
 Depends: R (>= 3.6.0)
+biocViews:
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
