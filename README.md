@@ -1,16 +1,26 @@
 # omicwas
+
 Cell-Type-Specific Disease Association Testing in Bulk Omics Experiments
 
-To install in R:
+## Installation in R
 
-install.packages("devtools")
+First install `sva` which is in Bioconductor:
 
-devtools::install_github("fumi-github/omicwas")
+    if (!requireNamespace("BiocManager", quietly = TRUE))
+        install.packages("BiocManager")
+    BiocManager::install("sva")
 
-library(omicwas)
+Then install `omicwas`:
 
-?ctassoc
+    install.packages("devtools")
+    devtools::install_github("fumi-github/omicwas")
 
-CSHL (14 Nov 2019) poster:
+## Usage
 
-http://103.253.147.127/PUBLICATIONS/191114cshl.pdf
+    library(omicwas)
+    ?ctassoc
+
+## Information
+
+[CSHL (14 Nov 2019) poster](http://103.253.147.127/PUBLICATIONS/191114cshl.pdf)
+
