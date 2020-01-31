@@ -119,7 +119,8 @@ ctassoc = function (X, W, Y, C = NULL,
     .full_assoc(X, W, Y, C,
                 test = test,
                 num.cores = num.cores,
-                chunk.size = chunk.size)
+                chunk.size = chunk.size,
+                seed = seed)
   }, "ridge" = {
     .full_assoc(X, W, Y, C,
                 test = test,
@@ -132,13 +133,13 @@ ctassoc = function (X, W, Y, C = NULL,
   #               lower.limit = lower.limit,
   #               upper.limit = upper.limit,
   #               num.cores = num.cores,
-  #               chunk.size = chunk.size)
+  #               chunk.size = chunk.size,
+  #               seed = seed)
   }, "full" = {
     .full_assoc(X, W, Y, C,
                 test = test,
                 num.cores = num.cores,
-                chunk.size = chunk.size,
-                seed = seed)
+                chunk.size = chunk.size)
   }, "marginal" = {
     .marginal_assoc(X, W, Y, C)
   })
