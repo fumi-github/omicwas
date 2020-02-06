@@ -37,3 +37,5 @@ Imports: broom,
     sva,
     tidyr
 RoxygenNote: 7.0.2
+Suggests: 
+    testthat
