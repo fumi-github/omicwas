@@ -51,7 +51,7 @@
 #' cell type \eqn{h}, under the linear regression,
 #' \deqn{Y_{j i} ~ (\sum_{h'} \mu_{h' j} * W_{i h'}) +
 #'                 (\sum_k \beta_{h j k} * W_{i h} * X_{i k}) +
-#'                 (\sum_l \gamma_{j l} * C_{i l})
+#'                 (\sum_l \gamma_{j l} * C_{i l}) +
 #'                 error.}
 #'
 #' @param X Matrix (or vector) of traits; samples x traits.
