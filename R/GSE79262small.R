@@ -13,4 +13,17 @@
 #' @source \href{https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE79262}{GEO}
 #'
 #' @seealso ctcisQTL
+#' @examples
+#' data(GSE79262small)
+#' X    = GSE79262small$X
+#' Xpos = GSE79262small$Xpos
+#' W    = GSE79262small$W
+#' Y    = GSE79262small$Y
+#' Ypos = GSE79262small$Ypos
+#' C    = GSE79262small$C
+#' X    = X[seq(1, 3001, 100), ] # for brevity
+#' Xpos = Xpos[seq(1, 3001, 100)]
+#' Y    = Y[seq(1, 501, 100), ]
+#' Ypos = Ypos[seq(1, 501, 100)]
+#' ctcisQTL(X, Xpos, W, Y, Ypos, C = C)
 "GSE79262small"
