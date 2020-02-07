@@ -713,9 +713,9 @@ ctRUV = function (X, W, Y, C = NULL,
       match(sub("\\..*", "", result$celltypeterm),
             c(colnames(W), "1"))]
   result$term =
-    c(colnames(Xoriginal), "1")[
+    c(colnames(Xoriginal), "1", colnames(C))[
       match(sub(".*\\.", "", result$celltypeterm),
-            c(colnames(X), "1"))]
+            c(colnames(X), "1", colnames(C)))]
   result = dplyr::select(
     result,
     c("response", "celltype", "term", "estimate", "statistic", "p.value"))
