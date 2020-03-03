@@ -4,7 +4,12 @@ Cell-Type-Specific Disease Association Testing in Bulk Omics Experiments
 
 ## Installation in R
 
-Run the following in R:
+Run the following to install from CRAN archive:
+
+    install.packages("omicwas")
+
+In order to install the most recent version,
+possibly not yet in CRAN:
 
     install.packages("devtools")
     devtools::install_github("fumi-github/omicwas")
