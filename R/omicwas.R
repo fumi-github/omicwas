@@ -92,7 +92,7 @@
 #' @importFrom ridge linearRidge
 #' @importFrom rlang .data abort inform
 #' @importFrom R.utils withTimeout
-#' @importFrom stats lm pnorm quantile
+#' @importFrom stats lm nls pnorm quantile
 #' @importFrom tidyr pivot_longer
 #' @importFrom utils getFromNamespace setTxtProgressBar txtProgressBar
 #' @export
@@ -104,8 +104,8 @@ ctassoc = function (X, W, Y, C = NULL,
                     num.cores = 1,
                     chunk.size = 1000,
                     seed = 123) {
-  if (!(test %in% c("reducedrankridge", "ridge", "full", "marginal"))) {
-    abort('Error: test must be either "reducedrankridge", "ridge", "full", "marginal"')
+  if (!(test %in% c("reducedrankridge", "ridge", "full", "marginal", "nls.identity"))) {
+    abort('Error: test must be either "reducedrankridge", "ridge", "full", "marginal", "nls.identity"')
   }
   X = .as.matrix(X, d = "vertical", nam = "X")
   W = .as.matrix(W, d = "vertical", nam = "W")
@@ -122,6 +122,12 @@ ctassoc = function (X, W, Y, C = NULL,
                 chunk.size = chunk.size,
                 seed = seed)
   }, "ridge" = {
+    .full_assoc(X, W, Y, C,
+                test = test,
+                num.cores = num.cores,
+                chunk.size = chunk.size)
+  }, "nls.identity" = {
+    # C = .colcenteralize(C)
     .full_assoc(X, W, Y, C,
                 test = test,
                 num.cores = num.cores,
@@ -336,6 +342,8 @@ ctRUV = function (X, W, Y, C = NULL,
   colnames(W) = gsub("\\.", "_", colnames(W))
   X1W = as.matrix(do.call(cbind, apply(W, 2, function(W_h) {cbind(as.data.frame(X), 1) * W_h})))
   XW = X1W[, -c((ncol(X)+1)*(1:ncol(W)))]
+  W1X = cbind(X1W[,   (ncol(X) + 1) * (1:ncol(W))],
+              X1W[, - (ncol(X) + 1) * (1:ncol(W))])
 
   switch(test, "full" = { # --------------------------------
     inform("Linear regression ...")
@@ -601,6 +609,56 @@ ctRUV = function (X, W, Y, C = NULL,
     gc()
     result = dplyr::as_tibble(data.table::rbindlist(result, idcol="response"))
     result$statistic = sign(result$estimate) * result$statistic
+
+  }, "nls.identity" = { # -----------------------------------------
+    inform("nls.identity ...")
+    batchsize = num.cores * chunk.size
+    totalsize = nrow(Y)
+    nbatches = ceiling(totalsize/batchsize)
+    Yff = ff::ff(
+      Y,
+      dim = dim(Y),
+      dimnames = dimnames(Y))
+    rm(Y)
+    gc()
+    mu = function (X, W, C, W1X, alpha, beta, gamma) {
+      res = rowSums(W * (rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))) +
+        C %*% gamma
+      attr(res, "gradient") = cbind(W1X, C)
+      return(res)
+    }
+    result = list()
+    pb = txtProgressBar(max = nbatches, style = 3)
+    for (i in 0:(nbatches - 1)) {
+      result = c(
+        result,
+        parApply(
+          cl = cl,
+          Yff[seq(1 + i * batchsize,
+                  min((i+1) * batchsize, totalsize)), ],
+          1,
+          function (y, X, W, C, W1X, mu) {
+                  mod = nls(y ~ mu(X, W, C, W1X, alpha, beta, gamma),
+                            data = list(y = y,
+                                        X = as.matrix(X),
+                                        W = W,
+                                        C = as.matrix(C),
+                                        W1X = W1X),
+                            start = list(alpha = rep(median(y), ncol(W)),
+                                         beta = matrix(0, nrow = ncol(W), ncol = ncol(X)),
+                                         gamma = rep(0, ncol(C))))
+                  res = data.frame(summary(mod)$coefficients[, -2])
+                  names(res) = c("estimate", "statistic", "p.value")
+                  res$celltypeterm = c(colnames(W1X), colnames(C))
+                  return(res)
+                  },
+          X, W, C, W1X, mu))
+      setTxtProgressBar(pb, i + 1)
+    }
+    close(pb)
+    ff::delete(Yff)
+    gc()
+    result = dplyr::as_tibble(data.table::rbindlist(result, idcol="response"))
 
   }, "glmnet" = { # -----------------------------------------
   # For constant terms, don't apply regularization penalty,
