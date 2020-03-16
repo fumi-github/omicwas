@@ -115,6 +115,9 @@ ctassoc = function (X, W, Y, C = NULL,
   }
   .check_input(X, W, Y, C)
   X = .colcenteralize(X)
+  if (!is.null(C)) {
+    C = .colcenteralize(C)
+  }
   switch(test, "reducedrankridge" = {
     .full_assoc(X, W, Y, C,
                 test = test,
@@ -179,6 +182,9 @@ ctRUV = function (X, W, Y, C = NULL,
   }
   .check_input(X, W, Y, C)
   X = .colcenteralize(X)
+  if (!is.null(C)) {
+    C = .colcenteralize(C)
+  }
   X1W = as.matrix(do.call(cbind, apply(W, 2, function(W_h) {cbind(as.data.frame(X), 1) * W_h})))
   switch(method, "PCA" = {
     if (is.null(C)) {
