@@ -130,7 +130,6 @@ ctassoc = function (X, W, Y, C = NULL,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   }, "nls.identity" = {
-    # C = .colcenteralize(C)
     .full_assoc(X, W, Y, C,
                 test = test,
                 num.cores = num.cores,
