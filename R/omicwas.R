@@ -92,7 +92,7 @@
 #' @importFrom ridge linearRidge
 #' @importFrom rlang .data abort inform
 #' @importFrom R.utils withTimeout
-#' @importFrom stats lm nls pnorm quantile
+#' @importFrom stats lm nls pnorm quantile sd
 #' @importFrom tidyr pivot_longer
 #' @importFrom utils getFromNamespace setTxtProgressBar txtProgressBar
 #' @export
