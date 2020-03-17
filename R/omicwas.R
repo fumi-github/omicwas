@@ -680,6 +680,11 @@ ctRUV = function (X, W, Y, C = NULL,
     result = dplyr::as_tibble(data.table::rbindlist(result, idcol="response"))
 
   }, "glmnet" = { # -----------------------------------------
+    if (!is.null(C)) {
+      tYadjC = lm(y ~ 0 + x,
+                  data = list(y = t(Y), x = C))$residuals
+      Y = t(tYadjC)
+    }
   # For constant terms, don't apply regularization penalty,
   # but bind by (methylation) level in each cell type.
   constantindices = (ncol(X)+1)*(1:ncol(W))
@@ -720,7 +725,8 @@ ctRUV = function (X, W, Y, C = NULL,
           intercept = 0,
           penalty.factor = penalty.factor,
           lower.limits = lower.limits,
-          upper.limits = upper.limits)
+          upper.limits = upper.limits,
+          standardize = FALSE)
         return(cv_fit$lambda.min) },
       X1W, alpha, penalty.factor, lower.limits, upper.limits)
   if (nrow(Y) < samplingsize) {
@@ -748,7 +754,8 @@ ctRUV = function (X, W, Y, C = NULL,
           intercept = 0,
           penalty.factor = penalty.factor,
           lower.limits = lower.limits,
-          upper.limits = upper.limits)
+          upper.limits = upper.limits,
+          standardize = FALSE)
         return(mod$beta[, 1]) },
       X1W, alpha, penalty.factor, lower.limits, upper.limits)
   result = as.data.frame(t(result))
