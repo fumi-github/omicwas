@@ -347,8 +347,12 @@ ctRUV = function (X, W, Y, C = NULL,
   colnames(W) = gsub("\\.", "_", colnames(W))
   X1W = as.matrix(do.call(cbind, apply(W, 2, function(W_h) {cbind(as.data.frame(X), 1) * W_h})))
   XW = X1W[, -c((ncol(X)+1)*(1:ncol(W)))]
-  W1X = cbind(X1W[,   (ncol(X) + 1) * (1:ncol(W))],
-              X1W[, - (ncol(X) + 1) * (1:ncol(W))])
+  oneXotimesW =
+    as.matrix(do.call(cbind, apply(cbind(1, as.data.frame(X)),
+                                   2,
+                                   function(X_k) {as.data.frame(W) * X_k})))
+  colnames(oneXotimesW) =
+    sub('([^.]*)\\.([^.]*)', '\\2.\\1', colnames(oneXotimesW), perl = TRUE)
 
   switch(test, "full" = { # --------------------------------
     inform("Linear regression ...")
@@ -626,10 +630,16 @@ ctRUV = function (X, W, Y, C = NULL,
       dimnames = dimnames(Y))
     rm(Y)
     gc()
-    mu = function (X, W, C, W1X, alpha, beta, gamma) {
-      res = rowSums(W * (rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))) +
-        C %*% gamma
-      attr(res, "gradient") = cbind(W1X, C)
+    mu = function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda) {
+      res =
+        c(rowSums(W * (rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))) +
+            C %*% gamma,
+          sqrtlambda * beta)
+      attr(res, "gradient") =
+        rbind(cbind(oneXotimesW, C),
+              cbind(matrix(0, nrow = length(beta), ncol = length(alpha)),
+                    diag(rep(sqrtlambda, length(beta))),
+                    matrix(0, nrow = length(beta), ncol = length(gamma))))
       return(res)
     }
     result = list()
@@ -642,22 +652,26 @@ ctRUV = function (X, W, Y, C = NULL,
           Yff[seq(1 + i * batchsize,
                   min((i+1) * batchsize, totalsize)), ],
           1,
-          function (y, X, W, C, W1X, mu) {
-                  mod = nls(y ~ mu(X, W, C, W1X, alpha, beta, gamma),
-                            data = list(y = y,
-                                        X = as.matrix(X),
-                                        W = W,
-                                        C = as.matrix(C),
-                                        W1X = W1X),
-                            start = list(alpha = rep(median(y), ncol(W)),
-                                         beta = matrix(0, nrow = ncol(W), ncol = ncol(X)),
-                                         gamma = rep(0, ncol(C))))
-                  res = data.frame(summary(mod)$coefficients[, -2])
-                  names(res) = c("estimate", "statistic", "p.value")
-                  res$celltypeterm = c(colnames(W1X), colnames(C))
-                  return(res)
-                  },
-          X, W, C, W1X, mu))
+          function (y, X, W, C, oneXotimesW, mu) {
+            sdy = sd(y)
+            y = y/sdy
+            sqrtlambda = 0 #1
+            mod = nls(y ~ mu(X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda),
+                      data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
+                                  X = as.matrix(X),
+                                  W = W,
+                                  C = as.matrix(C),
+                                  oneXotimesW = oneXotimesW),
+                      start = list(alpha = rep(median(y), ncol(W)),
+                                   beta = matrix(0, nrow = ncol(W), ncol = ncol(X)),
+                                   gamma = rep(0, ncol(C))))
+            res = data.frame(summary(mod)$coefficients[, -2])
+            names(res) = c("estimate", "statistic", "p.value")
+            res[, 1:2] = res[, 1:2] * sdy
+            res$celltypeterm = c(colnames(oneXotimesW), colnames(C))
+            return(res)
+          },
+          X, W, C, oneXotimesW, mu))
       setTxtProgressBar(pb, i + 1)
     }
     close(pb)
