@@ -667,7 +667,7 @@ ctRUV = function (X, W, Y, C = NULL,
                                    gamma = rep(0, ncol(C))))
             res = data.frame(summary(mod)$coefficients[, -2])
             names(res) = c("estimate", "statistic", "p.value")
-            res[, 1:2] = res[, 1:2] * sdy
+            res$estimate = res$estimate * sdy
             res$celltypeterm = c(colnames(oneXotimesW), colnames(C))
             return(res)
           },
