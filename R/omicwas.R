@@ -740,6 +740,7 @@ ctRUV = function (X, W, Y, C = NULL,
                   GCVdescending = TRUE
                 }
                 modprev = mod
+                dofprev = dof
               }
               GCVprev = GCV
             }
