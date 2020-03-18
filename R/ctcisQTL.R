@@ -73,7 +73,7 @@ ctcisQTL = function (X, Xpos, W, Y, Ypos, C = NULL,
     C = .as.matrix(C, d = "vertical", nam = "C")
   }
   .check_input_cisQTL(X, Xpos, W, Y, Ypos, C)
-  X = .rowcenteralize(X)
+  X = .rowcentralize(X)
 
   cl = makeCluster(num.cores)
   on.exit(stopCluster(cl))
