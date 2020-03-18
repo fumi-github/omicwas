@@ -131,7 +131,8 @@ ctassoc = function (X, W, Y, C = NULL,
                 chunk.size = chunk.size)
   }, "nls.identity" = {
     .full_assoc(X, W, Y, C,
-                test = test,
+                test = "nls",
+                nls.link = "identity",
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   # }, "glmnet" = {
@@ -320,6 +321,7 @@ ctRUV = function (X, W, Y, C = NULL,
 
 .full_assoc = function (X, W, Y, C,
                         test,
+                        nls.link,
                         alpha,
                         lower.limit,
                         upper.limit,
@@ -619,8 +621,8 @@ ctRUV = function (X, W, Y, C = NULL,
     result = dplyr::as_tibble(data.table::rbindlist(result, idcol="response"))
     result$statistic = sign(result$estimate) * result$statistic
 
-  }, "nls.identity" = { # -----------------------------------------
-    inform("nls.identity ...")
+  }, "nls" = { # -----------------------------------------
+    inform(paste0("nls.", nls.link, " ..."))
     batchsize = num.cores * chunk.size
     totalsize = nrow(Y)
     nbatches = ceiling(totalsize / batchsize)
@@ -630,32 +632,35 @@ ctRUV = function (X, W, Y, C = NULL,
       dimnames = dimnames(Y))
     rm(Y)
     gc()
-    mu =
-      if (is.null(C)) {
-        function (X, W, oneXotimesW, alpha, beta, sqrtlambda) {
-          res =
-            c(rowSums(W * (rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))),
-              sqrtlambda * beta)
-          attr(res, "gradient") =
-            rbind(oneXotimesW,
-                  cbind(matrix(0, nrow = length(beta), ncol = length(alpha)),
-                        diag(rep(sqrtlambda, length(beta)))))
-          return(res)
-        }
-      } else {
-        function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda) {
-          res =
-            c(rowSums(W * (rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))) +
-                C %*% gamma,
-              sqrtlambda * beta)
-          attr(res, "gradient") =
-            rbind(cbind(oneXotimesW, C),
-                  cbind(matrix(0, nrow = length(beta), ncol = length(alpha)),
-                        diag(rep(sqrtlambda, length(beta))),
-                        matrix(0, nrow = length(beta), ncol = length(gamma))))
-          return(res)
-        }
-      }
+    mu = switch(
+      nls.link,
+      identity =
+        if (is.null(C)) {
+          function (X, W, oneXotimesW, alpha, beta, sqrtlambda) {
+            res =
+              c(rowSums(W * (rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))),
+                sqrtlambda * beta)
+            attr(res, "gradient") =
+              rbind(oneXotimesW,
+                    cbind(matrix(0, nrow = length(beta), ncol = length(alpha)),
+                          diag(rep(sqrtlambda, length(beta)))))
+            return(res)
+          }
+        } else {
+          function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda) {
+            res =
+              c(rowSums(W * (rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))) +
+                  C %*% gamma,
+                sqrtlambda * beta)
+            attr(res, "gradient") =
+              rbind(cbind(oneXotimesW, C),
+                    cbind(matrix(0, nrow = length(beta), ncol = length(alpha)),
+                          diag(rep(sqrtlambda, length(beta))),
+                          matrix(0, nrow = length(beta), ncol = length(gamma))))
+            return(res)
+          }
+        },
+      logit = 1)
     result = list()
     pb = txtProgressBar(max = nbatches, style = 3)
     for (i in 0:(nbatches - 1)) {
