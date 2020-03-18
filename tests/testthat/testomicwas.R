@@ -9,6 +9,7 @@ test_that("ctassoc works for various test options", {
   W = GSE42861small$W
   C = GSE42861small$C
   load("../GSE42861smallresult.RData")
+  load("../GSE42861smallresult2.RData")
   expect_equal(
     head(ctRUV(X = X, W = W, Y = Y, C = C), 100),
     resRUV)
@@ -16,6 +17,10 @@ test_that("ctassoc works for various test options", {
     head(ctassoc(X = X, W = W, Y = Y, C = C,
                  test = "reducedrankridge")$coefficients$statistic, 100),
     resreducedrankridge$coefficients$statistic)
+  expect_equal(
+    head(ctassoc(X = X, W = W, Y = Y, C = C,
+                 test = "nls.identity")$coefficients$statistic, 100),
+    resnlsidentity$coefficients$statistic)
   expect_equal(
     head(ctassoc(X = X, W = W, Y = Y, C = C,
                  test = "ridge")$coefficients$statistic, 100),
