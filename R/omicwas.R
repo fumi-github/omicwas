@@ -92,7 +92,7 @@
 #' @importFrom ridge linearRidge
 #' @importFrom rlang .data abort inform
 #' @importFrom R.utils withTimeout
-#' @importFrom stats lm nls pnorm quantile sd
+#' @importFrom stats coef lm nls pnorm pt quantile residuals sd
 #' @importFrom tidyr pivot_longer
 #' @importFrom utils getFromNamespace setTxtProgressBar txtProgressBar
 #' @export
@@ -623,25 +623,39 @@ ctRUV = function (X, W, Y, C = NULL,
     inform("nls.identity ...")
     batchsize = num.cores * chunk.size
     totalsize = nrow(Y)
-    nbatches = ceiling(totalsize/batchsize)
+    nbatches = ceiling(totalsize / batchsize)
     Yff = ff::ff(
       Y,
       dim = dim(Y),
       dimnames = dimnames(Y))
     rm(Y)
     gc()
-    mu = function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda) {
-      res =
-        c(rowSums(W * (rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))) +
-            C %*% gamma,
-          sqrtlambda * beta)
-      attr(res, "gradient") =
-        rbind(cbind(oneXotimesW, C),
-              cbind(matrix(0, nrow = length(beta), ncol = length(alpha)),
-                    diag(rep(sqrtlambda, length(beta))),
-                    matrix(0, nrow = length(beta), ncol = length(gamma))))
-      return(res)
-    }
+    mu =
+      if (is.null(C)) {
+        function (X, W, oneXotimesW, alpha, beta, sqrtlambda) {
+          res =
+            c(rowSums(W * (rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))),
+              sqrtlambda * beta)
+          attr(res, "gradient") =
+            rbind(oneXotimesW,
+                  cbind(matrix(0, nrow = length(beta), ncol = length(alpha)),
+                        diag(rep(sqrtlambda, length(beta)))))
+          return(res)
+        }
+      } else {
+        function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda) {
+          res =
+            c(rowSums(W * (rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))) +
+                C %*% gamma,
+              sqrtlambda * beta)
+          attr(res, "gradient") =
+            rbind(cbind(oneXotimesW, C),
+                  cbind(matrix(0, nrow = length(beta), ncol = length(alpha)),
+                        diag(rep(sqrtlambda, length(beta))),
+                        matrix(0, nrow = length(beta), ncol = length(gamma))))
+          return(res)
+        }
+      }
     result = list()
     pb = txtProgressBar(max = nbatches, style = 3)
     for (i in 0:(nbatches - 1)) {
@@ -654,19 +668,99 @@ ctRUV = function (X, W, Y, C = NULL,
           1,
           function (y, X, W, C, oneXotimesW, mu) {
             sdy = sd(y)
-            y = y/sdy
-            sqrtlambda = 0 #1
-            mod = nls(y ~ mu(X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda),
-                      data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
-                                  X = as.matrix(X),
-                                  W = W,
-                                  C = as.matrix(C),
-                                  oneXotimesW = oneXotimesW),
-                      start = list(alpha = rep(median(y), ncol(W)),
-                                   beta = matrix(0, nrow = ncol(W), ncol = ncol(X)),
-                                   gamma = rep(0, ncol(C))))
+            y = y / sdy
+            ICs = c()
+            sigma2 = NA
+            start_alpha = rep(median(y), ncol(W))
+            start_beta  = matrix(0, nrow = ncol(W), ncol = ncol(X))
+            if (!is.null(C)) {
+              start_gamma = rep(0, ncol(C))
+            }
+
+            # Search best hyperparameter sqrtlambda based on GCV
+            GCVdescending = FALSE
+            GCVprev = 0
+            for (sqrtlambda in c(0, 2^seq(-10, 0.5, 0.5)) * sqrt(length(y))) {
+              if (is.null(C)) {
+                mod = nls(y ~ mu(X, W, oneXotimesW, alpha, beta, sqrtlambda),
+                          data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
+                                      X = as.matrix(X),
+                                      W = W,
+                                      oneXotimesW = oneXotimesW),
+                          start = list(alpha = start_alpha,
+                                       beta  = start_beta))
+                start_alpha = coef(mod)[seq(1, ncol(W))]
+                start_beta  = matrix(coef(mod)[seq(1, ncol(W) * ncol(X)) + ncol(W)],
+                                     nrow = ncol(W), ncol = ncol(X))
+              } else {
+                mod = nls(y ~ mu(X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda),
+                          data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
+                                      X = as.matrix(X),
+                                      W = W,
+                                      C = as.matrix(C),
+                                      oneXotimesW = oneXotimesW),
+                          start = list(alpha = start_alpha,
+                                       beta  = start_beta,
+                                       gamma = start_gamma))
+                start_alpha = coef(mod)[seq(1, ncol(W))]
+                start_beta  = matrix(coef(mod)[seq(1, ncol(W) * ncol(X)) + ncol(W)],
+                                     nrow = ncol(W), ncol = ncol(X))
+                start_gamma = coef(mod)[seq(1, ncol(C)) + ncol(W) * (ncol(X) + 1)]
+
+              }
+              P =
+                attr(mod$m$fitted(), "gradient")[1:length(y), ] %*%
+                solve(
+                  t(attr(mod$m$fitted(), "gradient")) %*%
+                    attr(mod$m$fitted(), "gradient")
+                ) %*%
+                t(attr(mod$m$fitted(), "gradient")[1:length(y), ])
+              dof = sum(diag(P))
+              RSS = sum((residuals(mod)[1:length(y)])^2)
+              if (sqrtlambda == 0) {
+                sigma2 = RSS / (length(y) - dof)
+              }
+              GCV = length(y) * RSS / (length(y) - dof)^2
+              AIC = 2 * dof +
+                RSS / sigma2 +
+                length(y) * log(2 * pi * sigma2)
+              BIC = log(length(y)) * dof +
+                RSS / sigma2 +
+                length(y) * log(2 * pi * sigma2)
+              ICs = c(ICs, sqrtlambda, dof, GCV, AIC, BIC)
+              if (GCVdescending) {
+                if (GCV / GCVprev > 0.9999) {
+                  break()
+                } else {
+                  modprev = mod
+                  dofprev = dof
+                }
+              } else {
+                if (GCV / GCVprev < 0.9998) {
+                  GCVdescending = TRUE
+                }
+                modprev = mod
+              }
+              GCVprev = GCV
+            }
+            ICs = matrix(ICs, byrow = TRUE, ncol = 5)
+            mod = modprev
+            dof = dofprev
             res = data.frame(summary(mod)$coefficients[, -2])
             names(res) = c("estimate", "statistic", "p.value")
+
+            # Wald test
+            sigma2Hstar =
+              t(attr(mod$m$fitted(), "gradient")[1:length(y), ]) %*%
+              attr(mod$m$fitted(), "gradient")[1:length(y), ]
+            sigma2Hstarlambdainv = solve(
+              t(attr(mod$m$fitted(), "gradient")) %*%
+                attr(mod$m$fitted(), "gradient"))
+            SE = sqrt(sigma2 * diag(sigma2Hstarlambdainv %*%
+                                      sigma2Hstar %*%
+                                      sigma2Hstarlambdainv))
+            res$statistic = res$estimate / SE
+            res$p.value = pt(- abs(res$statistic), df = length(y) - dof) * 2
             res$estimate = res$estimate * sdy
             res$celltypeterm = c(colnames(oneXotimesW), colnames(C))
             return(res)
