@@ -19,8 +19,14 @@ test_that("ctassoc works for various test options", {
     resreducedrankridge$coefficients$statistic)
   expect_equal(
     head(ctassoc(X = X, W = W, Y = Y, C = C,
-                 test = "nls.identity")$coefficients$statistic, 100),
+                 test = "nls.identity",
+                 chunk.size = 10)$coefficients$statistic, 100),
     resnlsidentity$coefficients$statistic)
+  expect_equal(
+    head(ctassoc(X = X, W = W, Y = Y, C = C,
+                 test = "nls.logit",
+                 chunk.size = 10)$coefficients$statistic, 100),
+    resnlslogit$coefficients$statistic)
   expect_equal(
     head(ctassoc(X = X, W = W, Y = Y, C = C,
                  test = "ridge")$coefficients$statistic, 100),
