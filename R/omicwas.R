@@ -92,7 +92,7 @@
 #' @importFrom ridge linearRidge
 #' @importFrom rlang .data abort inform
 #' @importFrom R.utils withTimeout
-#' @importFrom stats coef lm nls pnorm pt quantile residuals sd
+#' @importFrom stats coef lm nls pnorm plogis pt qlogis quantile residuals sd
 #' @importFrom tidyr pivot_longer
 #' @importFrom utils getFromNamespace setTxtProgressBar txtProgressBar
 #' @export
@@ -104,8 +104,8 @@ ctassoc = function (X, W, Y, C = NULL,
                     num.cores = 1,
                     chunk.size = 1000,
                     seed = 123) {
-  if (!(test %in% c("reducedrankridge", "ridge", "full", "marginal", "nls.identity"))) {
-    abort('Error: test must be either "reducedrankridge", "ridge", "full", "marginal", "nls.identity"')
+  if (!(test %in% c("reducedrankridge", "ridge", "full", "marginal", "nls.identity", "nls.logit"))) {
+    abort('Error: test must be either "reducedrankridge", "ridge", "full", "marginal", "nls.identity", "nls.logit"')
   }
   X = .as.matrix(X, d = "vertical", nam = "X")
   W = .as.matrix(W, d = "vertical", nam = "W")
@@ -133,6 +133,12 @@ ctassoc = function (X, W, Y, C = NULL,
     .full_assoc(X, W, Y, C,
                 test = "nls",
                 nls.link = "identity",
+                num.cores = num.cores,
+                chunk.size = chunk.size)
+  }, "nls.logit" = {
+    .full_assoc(X, W, Y, C,
+                test = "nls",
+                nls.link = "logit",
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   # }, "glmnet" = {
@@ -626,12 +632,30 @@ ctRUV = function (X, W, Y, C = NULL,
     batchsize = num.cores * chunk.size
     totalsize = nrow(Y)
     nbatches = ceiling(totalsize / batchsize)
+
+    switch(
+      nls.link,
+      logit = {
+        if (min(Y, na.rm = TRUE) < 0 | max(Y, na.rm = TRUE) > 1) {
+          abort("Error: for test = nls.logit, values of Y must be between 0 and 1")
+        }
+        if (min(Y, na.rm = TRUE) == 0 | max(Y, na.rm = TRUE) == 1) {
+          Y = 0.998 * Y + 0.001
+        }
+        Y = qlogis(Y)
+      }, log = {
+        if (min(Y, na.rm = TRUE) <= 0) {
+          abort("Error: for test = nls.log, values of Y must be positive")
+        }
+        Y = log(Y)
+      })
     Yff = ff::ff(
       Y,
       dim = dim(Y),
       dimnames = dimnames(Y))
     rm(Y)
     gc()
+
     mu = switch(
       nls.link,
       identity =
@@ -660,7 +684,41 @@ ctRUV = function (X, W, Y, C = NULL,
             return(res)
           }
         },
-      logit = 1)
+      logit =
+        if (is.null(C)) {
+          function (X, W, oneXotimesW, alpha, beta, sqrtlambda) {
+            res = 0 # TODO
+
+            attr(res, "gradient") = 0
+
+            return(res)
+          }
+        } else {
+          function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda) {
+            g_i_h = plogis(rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))
+            Wlogit =
+              W * g_i_h * (1 - g_i_h) /
+              ((rowSums(W * g_i_h) * (1 - rowSums(W * g_i_h))) %*% t(rep(1, ncol(W))))
+            res = c(qlogis(rowSums(W * g_i_h)) + C %*% gamma,
+                    sqrtlambda * beta)
+            attr(res, "gradient") =
+              rbind(
+                cbind(
+                  as.matrix(
+                    do.call(cbind,
+                            apply(cbind(1, X),
+                                  2,
+                                  function(X_k) {as.data.frame(Wlogit) * X_k}))),
+                  C),
+                cbind(
+                  matrix(0, nrow = length(beta), ncol = length(alpha)),
+                  diag(rep(sqrtlambda, length(beta))),
+                  matrix(0, nrow = length(beta), ncol = length(gamma))))
+            return(res)
+          }
+        }
+    )
+
     result = list()
     pb = txtProgressBar(max = nbatches, style = 3)
     for (i in 0:(nbatches - 1)) {
