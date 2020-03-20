@@ -672,41 +672,122 @@ ctRUV = function (X, W, Y, C = NULL,
                   min((i+1) * batchsize, totalsize)), ],
           1,
           function (y, X, W, C, oneXotimesW, mu) {
-            sdy = sd(y)
-            y = y / sdy
-            ICs = c()
+            GCVstats = data.frame()
+            mods = list()
             sigma2 = NA
-            start_alpha = rep(median(y), ncol(W))
-            start_beta  = matrix(0, nrow = ncol(W), ncol = ncol(X))
+
+            start_alpha_0 =
+              start_alpha = rep(median(y, na.rm = TRUE), ncol(W))
+            lower_alpha   = rep(min(y, na.rm = TRUE), ncol(W))
+            upper_alpha   = rep(max(y, na.rm = TRUE), ncol(W))
+            start_beta_0 =
+              start_beta  = matrix(   0, nrow = ncol(W), ncol = ncol(X))
+            lower_beta    = matrix(-Inf, nrow = ncol(W), ncol = ncol(X))
+            upper_beta    = matrix( Inf, nrow = ncol(W), ncol = ncol(X))
             if (!is.null(C)) {
-              start_gamma = rep(0, ncol(C))
+              start_gamma_0 =
+                start_gamma = rep(   0, ncol(C))
+              lower_gamma   = rep(-Inf, ncol(C))
+              upper_gamma   = rep( Inf, ncol(C))
             }
 
-            # Search best hyperparameter sqrtlambda based on GCV
-            GCVdescending = FALSE
-            GCVprev = 0
-            for (sqrtlambda in c(0, 2^seq(-10, 0.5, 0.5)) * sqrt(length(y))) {
+            if (is.null(C)) {
+              svdd =
+                svd(attr(
+                  mu(X, W, oneXotimesW, start_alpha, start_beta, 0),
+                  "gradient")[, seq(1, ncol(W) * ncol(X)) + ncol(W)])$d
+
+            } else {
+              svdd =
+                svd(attr(
+                  mu(X, W, C, oneXotimesW, start_alpha, start_beta, start_gamma, 0),
+                  "gradient")[, seq(1, ncol(W) * ncol(X)) + ncol(W)])$d
+            }
+            # Decreasing order improves convergence.
+            # start_* is taken from preceding nls run
+            # If failed, tried again with start_*_0
+            sqrtlambdalist = c(
+              exp(seq(log(max(svdd)) + 1,
+                      log(min(svdd)) - 1,
+                      length.out = 20)),
+              0)
+
+            for (sqrtlambda in sqrtlambdalist) {
               if (is.null(C)) {
-                mod = nls(y ~ mu(X, W, oneXotimesW, alpha, beta, sqrtlambda),
-                          data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
-                                      X = as.matrix(X),
-                                      W = W,
-                                      oneXotimesW = oneXotimesW),
-                          start = list(alpha = start_alpha,
-                                       beta  = start_beta))
+                e = try({
+                  mod = nls(y ~ mu(X, W, oneXotimesW, alpha, beta, sqrtlambda),
+                            data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
+                                        X = as.matrix(X),
+                                        W = W,
+                                        oneXotimesW = oneXotimesW),
+                            start = list(alpha = start_alpha,
+                                         beta  = start_beta),
+                            lower = c(lower_alpha,
+                                      lower_beta),
+                            upper = c(upper_alpha,
+                                      upper_beta),
+                            algorithm = "port")})
+                if (class(e) == "try-error") {
+                  e = try({
+                    mod = nls(y ~ mu(X, W, oneXotimesW, alpha, beta, sqrtlambda),
+                              data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
+                                          X = as.matrix(X),
+                                          W = W,
+                                          oneXotimesW = oneXotimesW),
+                              start = list(alpha = start_alpha_0,
+                                           beta  = start_beta_0),
+                              lower = c(lower_alpha,
+                                        lower_beta),
+                              upper = c(upper_alpha,
+                                        upper_beta),
+                              algorithm = "port")})
+                }
+                if (class(e) == "try-error") {
+                  next()
+                }
                 start_alpha = coef(mod)[seq(1, ncol(W))]
                 start_beta  = matrix(coef(mod)[seq(1, ncol(W) * ncol(X)) + ncol(W)],
                                      nrow = ncol(W), ncol = ncol(X))
               } else {
-                mod = nls(y ~ mu(X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda),
-                          data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
-                                      X = as.matrix(X),
-                                      W = W,
-                                      C = as.matrix(C),
-                                      oneXotimesW = oneXotimesW),
-                          start = list(alpha = start_alpha,
-                                       beta  = start_beta,
-                                       gamma = start_gamma))
+                e = try({
+                  mod = nls(y ~ mu(X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda),
+                            data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
+                                        X = as.matrix(X),
+                                        W = W,
+                                        C = as.matrix(C),
+                                        oneXotimesW = oneXotimesW),
+                            start = list(alpha = start_alpha,
+                                         beta  = start_beta,
+                                         gamma = start_gamma),
+                            lower = c(lower_alpha,
+                                      lower_beta,
+                                      lower_gamma),
+                            upper = c(upper_alpha,
+                                      upper_beta,
+                                      upper_gamma),
+                            algorithm = "port")})
+                if (class(e) == "try-error") {
+                  e = try({
+                    mod = nls(y ~ mu(X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda),
+                              data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
+                                          X = as.matrix(X),
+                                          W = W,
+                                          C = as.matrix(C),
+                                          oneXotimesW = oneXotimesW),
+                              start = list(alpha = start_alpha_0,
+                                           beta  = start_beta_0,
+                                           gamma = start_gamma_0),
+                              lower = c(lower_alpha,
+                                        lower_beta,
+                                        lower_gamma),
+                              upper = c(upper_alpha,
+                                        upper_beta,
+                                        upper_gamma),
+                              algorithm = "port")})
+                }
+                if (class(e) == "try-error") {
+                  next()
+                }
                 start_alpha = coef(mod)[seq(1, ncol(W))]
                 start_beta  = matrix(coef(mod)[seq(1, ncol(W) * ncol(X)) + ncol(W)],
                                      nrow = ncol(W), ncol = ncol(X))
@@ -726,49 +807,46 @@ ctRUV = function (X, W, Y, C = NULL,
                 sigma2 = RSS / (length(y) - dof)
               }
               GCV = length(y) * RSS / (length(y) - dof)^2
-              AIC = 2 * dof +
-                RSS / sigma2 +
-                length(y) * log(2 * pi * sigma2)
-              BIC = log(length(y)) * dof +
-                RSS / sigma2 +
-                length(y) * log(2 * pi * sigma2)
-              ICs = c(ICs, sqrtlambda, dof, GCV, AIC, BIC)
-              if (GCVdescending) {
-                if (GCV / GCVprev > 0.9999) {
-                  break()
-                } else {
-                  modprev = mod
-                  dofprev = dof
-                }
-              } else {
-                if (GCV / GCVprev < 0.9998) {
-                  GCVdescending = TRUE
-                }
-                modprev = mod
-                dofprev = dof
-              }
-              GCVprev = GCV
+              # AIC = 2 * dof +
+              #   RSS / sigma2 +
+              #   length(y) * log(2 * pi * sigma2)
+              # BIC = log(length(y)) * dof +
+              #   RSS / sigma2 +
+              #   length(y) * log(2 * pi * sigma2)
+              GCVstats = rbind(
+                GCVstats,
+                data.frame(sqrtlambda = sqrtlambda,
+                           dof = dof,
+                           GCV = GCV))
+              mods = c(mods, list(mod))
             }
-            ICs = matrix(ICs, byrow = TRUE, ncol = 5)
-            mod = modprev
-            dof = dofprev
-            res = data.frame(summary(mod)$coefficients[, -2])
-            names(res) = c("estimate", "statistic", "p.value")
+            if (0 %in% GCVstats$sqrtlambda) {
+              dof = GCVstats$dof[which.min(GCVstats$GCV)]
+              mod = mods[[which.min(GCVstats$GCV)]]
+              res = data.frame(summary(mod)$coefficients[, -2])
+              names(res) = c("estimate", "statistic", "p.value")
 
-            # Wald test
-            sigma2Hstar =
-              t(attr(mod$m$fitted(), "gradient")[1:length(y), ]) %*%
-              attr(mod$m$fitted(), "gradient")[1:length(y), ]
-            sigma2Hstarlambdainv = solve(
-              t(attr(mod$m$fitted(), "gradient")) %*%
-                attr(mod$m$fitted(), "gradient"))
-            SE = sqrt(sigma2 * diag(sigma2Hstarlambdainv %*%
-                                      sigma2Hstar %*%
-                                      sigma2Hstarlambdainv))
-            res$statistic = res$estimate / SE
-            res$p.value = pt(- abs(res$statistic), df = length(y) - dof) * 2
-            res$estimate = res$estimate * sdy
-            res$celltypeterm = c(colnames(oneXotimesW), colnames(C))
+              # Wald test
+              sigma2Hstar =
+                t(attr(mod$m$fitted(), "gradient")[1:length(y), ]) %*%
+                attr(mod$m$fitted(), "gradient")[1:length(y), ]
+              sigma2Hstarlambdainv = solve(
+                t(attr(mod$m$fitted(), "gradient")) %*%
+                  attr(mod$m$fitted(), "gradient"))
+              SE = sqrt(sigma2 * diag(sigma2Hstarlambdainv %*%
+                                        sigma2Hstar %*%
+                                        sigma2Hstarlambdainv))
+              res$statistic = res$estimate / SE
+              res$p.value = pt(- abs(res$statistic), df = length(y) - dof) * 2
+              res$celltypeterm = c(colnames(oneXotimesW), colnames(C))
+            } else {
+              res =
+                data.frame(estimate     = NA,
+                           statistic    = NA,
+                           p.value      = NA,
+                           celltypeterm = c(colnames(oneXotimesW), colnames(C)))
+
+            }
             return(res)
           },
           X, W, C, oneXotimesW, mu))
