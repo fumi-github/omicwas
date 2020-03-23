@@ -909,13 +909,21 @@ ctRUV = function (X, W, Y, C = NULL,
                 start_gamma = coef(mod)[seq(1, ncol(C)) + ncol(W) * (ncol(X) + 1)]
 
               }
+              if (is.null(C)) {
+                x = attr(mu(X, W, oneXotimesW,
+                            start_alpha, start_beta,
+                            sqrtlambda),
+                         "gradient")
+              } else {
+                x = attr(mu(X, W, C, oneXotimesW,
+                            start_alpha, start_beta, start_gamma,
+                            sqrtlambda),
+                         "gradient")
+              }
               P =
-                attr(mod$m$fitted(), "gradient")[1:length(y), ] %*%
-                solve(
-                  t(attr(mod$m$fitted(), "gradient")) %*%
-                    attr(mod$m$fitted(), "gradient")
-                ) %*%
-                t(attr(mod$m$fitted(), "gradient")[1:length(y), ])
+                x[1:length(y), ] %*%
+                solve(t(x) %*% x) %*%
+                t(x[1:length(y), ])
               dof = sum(diag(P))
               RSS = sum((residuals(mod)[1:length(y)])^2)
               if (sqrtlambda == 0) {
