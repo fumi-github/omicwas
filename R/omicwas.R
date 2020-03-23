@@ -92,7 +92,7 @@
 #' @importFrom ridge linearRidge
 #' @importFrom rlang .data abort inform
 #' @importFrom R.utils withTimeout
-#' @importFrom stats coef lm nls pnorm plogis pt qlogis quantile residuals sd
+#' @importFrom stats coef lm nls nls.control pnorm plogis pt qlogis quantile residuals sd
 #' @importFrom tidyr pivot_longer
 #' @importFrom utils getFromNamespace setTxtProgressBar txtProgressBar
 #' @export
@@ -811,78 +811,78 @@ ctRUV = function (X, W, Y, C = NULL,
 
             for (sqrtlambda in sqrtlambdalist) {
               if (is.null(C)) {
-                e = try({
+                mod = nls(y ~ mu(X, W, oneXotimesW, alpha, beta, sqrtlambda),
+                          data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
+                                      X = as.matrix(X),
+                                      W = W,
+                                      oneXotimesW = oneXotimesW),
+                          start = list(alpha = start_alpha,
+                                       beta  = start_beta),
+                          lower = c(lower_alpha,
+                                    lower_beta),
+                          upper = c(upper_alpha,
+                                    upper_beta),
+                          algorithm = "port",
+                          control = nls.control(warnOnly = TRUE))
+                if (! mod$convInfo$isConv) {
                   mod = nls(y ~ mu(X, W, oneXotimesW, alpha, beta, sqrtlambda),
                             data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
                                         X = as.matrix(X),
                                         W = W,
                                         oneXotimesW = oneXotimesW),
-                            start = list(alpha = start_alpha,
-                                         beta  = start_beta),
+                            start = list(alpha = start_alpha_0,
+                                         beta  = start_beta_0),
                             lower = c(lower_alpha,
                                       lower_beta),
                             upper = c(upper_alpha,
                                       upper_beta),
-                            algorithm = "port")})
-                if (class(e) == "try-error") {
-                  e = try({
-                    mod = nls(y ~ mu(X, W, oneXotimesW, alpha, beta, sqrtlambda),
-                              data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
-                                          X = as.matrix(X),
-                                          W = W,
-                                          oneXotimesW = oneXotimesW),
-                              start = list(alpha = start_alpha_0,
-                                           beta  = start_beta_0),
-                              lower = c(lower_alpha,
-                                        lower_beta),
-                              upper = c(upper_alpha,
-                                        upper_beta),
-                              algorithm = "port")})
+                            algorithm = "port",
+                            control = nls.control(warnOnly = TRUE))
                 }
-                if (class(e) == "try-error") {
+                if (! mod$convInfo$isConv) {
                   next()
                 }
                 start_alpha = coef(mod)[seq(1, ncol(W))]
                 start_beta  = matrix(coef(mod)[seq(1, ncol(W) * ncol(X)) + ncol(W)],
                                      nrow = ncol(W), ncol = ncol(X))
               } else {
-                e = try({
+                mod = nls(y ~ mu(X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda),
+                          data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
+                                      X = as.matrix(X),
+                                      W = W,
+                                      C = as.matrix(C),
+                                      oneXotimesW = oneXotimesW),
+                          start = list(alpha = start_alpha,
+                                       beta  = start_beta,
+                                       gamma = start_gamma),
+                          lower = c(lower_alpha,
+                                    lower_beta,
+                                    lower_gamma),
+                          upper = c(upper_alpha,
+                                    upper_beta,
+                                    upper_gamma),
+                          algorithm = "port",
+                          control = nls.control(warnOnly = TRUE))
+                if (! mod$convInfo$isConv) {
                   mod = nls(y ~ mu(X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda),
                             data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
                                         X = as.matrix(X),
                                         W = W,
                                         C = as.matrix(C),
                                         oneXotimesW = oneXotimesW),
-                            start = list(alpha = start_alpha,
-                                         beta  = start_beta,
-                                         gamma = start_gamma),
+                            start = list(alpha = start_alpha_0,
+                                         beta  = start_beta_0,
+                                         gamma = start_gamma_0),
                             lower = c(lower_alpha,
                                       lower_beta,
                                       lower_gamma),
                             upper = c(upper_alpha,
                                       upper_beta,
                                       upper_gamma),
-                            algorithm = "port")})
-                if (class(e) == "try-error") {
-                  e = try({
-                    mod = nls(y ~ mu(X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda),
-                              data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
-                                          X = as.matrix(X),
-                                          W = W,
-                                          C = as.matrix(C),
-                                          oneXotimesW = oneXotimesW),
-                              start = list(alpha = start_alpha_0,
-                                           beta  = start_beta_0,
-                                           gamma = start_gamma_0),
-                              lower = c(lower_alpha,
-                                        lower_beta,
-                                        lower_gamma),
-                              upper = c(upper_alpha,
-                                        upper_beta,
-                                        upper_gamma),
-                              algorithm = "port")})
+                            algorithm = "port",
+                            control = nls.control(warnOnly = TRUE))
                 }
-                if (class(e) == "try-error") {
+                if (! mod$convInfo$isConv) {
                   next()
                 }
                 start_alpha = coef(mod)[seq(1, ncol(W))]
