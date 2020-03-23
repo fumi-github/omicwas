@@ -104,8 +104,8 @@ ctassoc = function (X, W, Y, C = NULL,
                     num.cores = 1,
                     chunk.size = 1000,
                     seed = 123) {
-  if (!(test %in% c("reducedrankridge", "ridge", "full", "marginal", "nls.identity", "nls.logit"))) {
-    abort('Error: test must be either "reducedrankridge", "ridge", "full", "marginal", "nls.identity", "nls.logit"')
+  if (!(test %in% c("reducedrankridge", "ridge", "full", "marginal", "nls.identity", "nls.log", "nls.logit"))) {
+    abort('Error: test must be either "reducedrankridge", "ridge", "full", "marginal", "nls.identity", "nls.log", "nls.logit"')
   }
   X = .as.matrix(X, d = "vertical", nam = "X")
   W = .as.matrix(W, d = "vertical", nam = "W")
@@ -133,6 +133,12 @@ ctassoc = function (X, W, Y, C = NULL,
     .full_assoc(X, W, Y, C,
                 test = "nls",
                 nls.link = "identity",
+                num.cores = num.cores,
+                chunk.size = chunk.size)
+  }, "nls.log" = {
+    .full_assoc(X, W, Y, C,
+                test = "nls",
+                nls.link = "log",
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   }, "nls.logit" = {
@@ -681,6 +687,39 @@ ctRUV = function (X, W, Y, C = NULL,
                     cbind(matrix(0, nrow = length(beta), ncol = length(alpha)),
                           diag(rep(sqrtlambda, length(beta))),
                           matrix(0, nrow = length(beta), ncol = length(gamma))))
+            return(res)
+          }
+        },
+      log =
+        if (is.null(C)) {
+          function (X, W, oneXotimesW, alpha, beta, sqrtlambda) {
+            res = 0 # TODO
+
+            attr(res, "gradient") = 0
+
+            return(res)
+          }
+        } else {
+          function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda) {
+            g_i_h = exp(rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))
+            Wlog =
+              W * g_i_h /
+              (rowSums(W * g_i_h) %*% t(rep(1, ncol(W))))
+            res = c(log(rowSums(W * g_i_h)) + C %*% gamma,
+                    sqrtlambda * beta)
+            attr(res, "gradient") =
+              rbind(
+                cbind(
+                  as.matrix(
+                    do.call(cbind,
+                            apply(cbind(1, X),
+                                  2,
+                                  function(X_k) {as.data.frame(Wlog) * X_k}))),
+                  C),
+                cbind(
+                  matrix(0, nrow = length(beta), ncol = length(alpha)),
+                  diag(rep(sqrtlambda, length(beta))),
+                  matrix(0, nrow = length(beta), ncol = length(gamma))))
             return(res)
           }
         },
