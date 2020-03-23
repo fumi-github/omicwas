@@ -666,7 +666,8 @@ ctRUV = function (X, W, Y, C = NULL,
       nls.link,
       identity =
         if (is.null(C)) {
-          function (X, W, oneXotimesW, alpha, beta, sqrtlambda) {
+          function (X, W, oneXotimesW, alpha, beta, sqrtlambda,
+                    gradientwithoutalpha = FALSE) {
             res =
               c(rowSums(W * (rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))),
                 sqrtlambda * beta)
@@ -674,10 +675,14 @@ ctRUV = function (X, W, Y, C = NULL,
               rbind(oneXotimesW,
                     cbind(matrix(0, nrow = length(beta), ncol = length(alpha)),
                           diag(rep(sqrtlambda, length(beta)))))
+            if (gradientwithoutalpha) {
+              attr(res, "gradient") = attr(res, "gradient")[, -(1:length(alpha))]
+            }
             return(res)
           }
         } else {
-          function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda) {
+          function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda,
+                    gradientwithoutalpha = FALSE) {
             res =
               c(rowSums(W * (rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))) +
                   C %*% gamma,
@@ -687,12 +692,16 @@ ctRUV = function (X, W, Y, C = NULL,
                     cbind(matrix(0, nrow = length(beta), ncol = length(alpha)),
                           diag(rep(sqrtlambda, length(beta))),
                           matrix(0, nrow = length(beta), ncol = length(gamma))))
+            if (gradientwithoutalpha) {
+              attr(res, "gradient") = attr(res, "gradient")[, -(1:length(alpha))]
+            }
             return(res)
           }
         },
       log =
         if (is.null(C)) {
-          function (X, W, oneXotimesW, alpha, beta, sqrtlambda) {
+          function (X, W, oneXotimesW, alpha, beta, sqrtlambda,
+                    gradientwithoutalpha = FALSE) {
             res = 0 # TODO
 
             attr(res, "gradient") = 0
@@ -700,7 +709,8 @@ ctRUV = function (X, W, Y, C = NULL,
             return(res)
           }
         } else {
-          function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda) {
+          function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda,
+                    gradientwithoutalpha = FALSE) {
             g_i_h = exp(rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))
             Wlog =
               W * g_i_h /
@@ -720,12 +730,16 @@ ctRUV = function (X, W, Y, C = NULL,
                   matrix(0, nrow = length(beta), ncol = length(alpha)),
                   diag(rep(sqrtlambda, length(beta))),
                   matrix(0, nrow = length(beta), ncol = length(gamma))))
+            if (gradientwithoutalpha) {
+              attr(res, "gradient") = attr(res, "gradient")[, -(1:length(alpha))]
+            }
             return(res)
           }
         },
       logit =
         if (is.null(C)) {
-          function (X, W, oneXotimesW, alpha, beta, sqrtlambda) {
+          function (X, W, oneXotimesW, alpha, beta, sqrtlambda,
+                    gradientwithoutalpha = FALSE) {
             res = 0 # TODO
 
             attr(res, "gradient") = 0
@@ -733,7 +747,8 @@ ctRUV = function (X, W, Y, C = NULL,
             return(res)
           }
         } else {
-          function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda) {
+          function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda,
+                    gradientwithoutalpha = FALSE) {
             g_i_h = plogis(rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))
             Wlogit =
               W * g_i_h * (1 - g_i_h) /
@@ -753,6 +768,9 @@ ctRUV = function (X, W, Y, C = NULL,
                   matrix(0, nrow = length(beta), ncol = length(alpha)),
                   diag(rep(sqrtlambda, length(beta))),
                   matrix(0, nrow = length(beta), ncol = length(gamma))))
+            if (gradientwithoutalpha) {
+              attr(res, "gradient") = attr(res, "gradient")[, -(1:length(alpha))]
+            }
             return(res)
           }
         }
