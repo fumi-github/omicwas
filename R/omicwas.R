@@ -788,7 +788,9 @@ ctRUV = function (X, W, Y, C = NULL,
           1,
           function (y, X, W, C, oneXotimesW, mu) {
             GCVstats = data.frame()
-            mods = list()
+            start_alphas = list()
+            start_betas  = list()
+            start_gammas = list()
             sigma2 = NA
 
             start_alpha_0 =
@@ -943,21 +945,35 @@ ctRUV = function (X, W, Y, C = NULL,
                 data.frame(sqrtlambda = sqrtlambda,
                            dof = dof,
                            GCV = GCV))
-              mods = c(mods, list(mod))
+              start_alphas = c(start_alphas, list(start_alpha))
+              start_betas  = c(start_betas,  list(start_beta))
+              start_gammas = c(start_gammas, list(start_gamma))
             }
             if (0 %in% GCVstats$sqrtlambda) {
-              dof = GCVstats$dof[which.min(GCVstats$GCV)]
-              mod = mods[[which.min(GCVstats$GCV)]]
-              res = data.frame(summary(mod)$coefficients[, -2])
-              names(res) = c("estimate", "statistic", "p.value")
+              i = which.min(GCVstats$GCV)
+              sqrtlambda = GCVstats$sqrtlambda[i]
+              dof = GCVstats$dof[i]
+              start_alpha = start_alphas[[i]]
+              start_beta  = start_betas[[i]]
+              start_gamma = start_gammas[[i]]
+              res = data.frame(estimate = c(start_alpha, start_beta, start_gamma))
 
               # Wald test
+              if (is.null(C)) {
+                x = attr(mu(X, W, oneXotimesW,
+                            start_alpha, start_beta,
+                            sqrtlambda),
+                         "gradient")
+              } else {
+                x = attr(mu(X, W, C, oneXotimesW,
+                            start_alpha, start_beta, start_gamma,
+                            sqrtlambda),
+                         "gradient")
+              }
               sigma2Hstar =
-                t(attr(mod$m$fitted(), "gradient")[1:length(y), ]) %*%
-                attr(mod$m$fitted(), "gradient")[1:length(y), ]
-              sigma2Hstarlambdainv = solve(
-                t(attr(mod$m$fitted(), "gradient")) %*%
-                  attr(mod$m$fitted(), "gradient"))
+                t(x[1:length(y), ]) %*%
+                x[1:length(y), ]
+              sigma2Hstarlambdainv = solve(t(x) %*% x)
               SE = sqrt(sigma2 * diag(sigma2Hstarlambdainv %*%
                                         sigma2Hstar %*%
                                         sigma2Hstarlambdainv))
