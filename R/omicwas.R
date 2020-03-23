@@ -828,6 +828,7 @@ ctRUV = function (X, W, Y, C = NULL,
               0)
 
             for (sqrtlambda in sqrtlambdalist) {
+              print(sqrtlambda)
               if (is.null(C)) {
                 mod = nls(y ~ mu(X, W, oneXotimesW, alpha, beta, sqrtlambda),
                           data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
@@ -880,34 +881,35 @@ ctRUV = function (X, W, Y, C = NULL,
                                     upper_beta,
                                     upper_gamma),
                           algorithm = "port",
+                          trace = TRUE,
                           control = nls.control(warnOnly = TRUE))
-                if (! mod$convInfo$isConv) {
-                  mod = nls(y ~ mu(X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda),
+                if (mod$convInfo$isConv) {
+                  start_alpha = coef(mod)[seq(1, ncol(W))]
+                  start_beta  = matrix(coef(mod)[seq(1, ncol(W) * ncol(X)) + ncol(W)],
+                                       nrow = ncol(W), ncol = ncol(X))
+                  start_gamma = coef(mod)[seq(1, ncol(C)) + ncol(W) * (ncol(X) + 1)]
+                } else {
+                  start_alpha = coef(mod)[seq(1, ncol(W))]
+                  mod = nls(y ~ mu(X, W, C, oneXotimesW, start_alpha, beta, gamma, sqrtlambda,
+                                   gradientwithoutalpha = TRUE),
                             data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
                                         X = as.matrix(X),
                                         W = W,
                                         C = as.matrix(C),
                                         oneXotimesW = oneXotimesW),
-                            start = list(alpha = start_alpha_0,
-                                         beta  = start_beta_0,
-                                         gamma = start_gamma_0),
-                            lower = c(lower_alpha,
-                                      lower_beta,
-                                      lower_gamma),
-                            upper = c(upper_alpha,
-                                      upper_beta,
-                                      upper_gamma),
+                            start = list(beta  = start_beta,
+                                         gamma = start_gamma),
                             algorithm = "port",
+                            trace = TRUE,
                             control = nls.control(warnOnly = TRUE))
+                  if (! mod$convInfo$isConv) {
+                    next()
+                  } else {
+                    start_beta  = matrix(coef(mod)[seq(1, ncol(W) * ncol(X))],
+                                         nrow = ncol(W), ncol = ncol(X))
+                    start_gamma = coef(mod)[seq(1, ncol(C)) + ncol(W) * ncol(X)]
+                  }
                 }
-                if (! mod$convInfo$isConv) {
-                  next()
-                }
-                start_alpha = coef(mod)[seq(1, ncol(W))]
-                start_beta  = matrix(coef(mod)[seq(1, ncol(W) * ncol(X)) + ncol(W)],
-                                     nrow = ncol(W), ncol = ncol(X))
-                start_gamma = coef(mod)[seq(1, ncol(C)) + ncol(W) * (ncol(X) + 1)]
-
               }
               if (is.null(C)) {
                 x = attr(mu(X, W, oneXotimesW,
