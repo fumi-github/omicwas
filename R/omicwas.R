@@ -662,118 +662,117 @@ ctRUV = function (X, W, Y, C = NULL,
     rm(Y)
     gc()
 
-    mu = switch(
-      nls.link,
-      identity =
-        if (is.null(C)) {
-          function (X, W, oneXotimesW, alpha, beta, sqrtlambda,
-                    gradientwithoutalpha = FALSE) {
-            res =
-              c(rowSums(W * (rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))),
-                sqrtlambda * beta)
-            attr(res, "gradient") =
-              rbind(oneXotimesW,
-                    cbind(matrix(0, nrow = length(beta), ncol = length(alpha)),
-                          diag(rep(sqrtlambda, length(beta)))))
-            if (gradientwithoutalpha) {
-              attr(res, "gradient") = attr(res, "gradient")[, -(1:length(alpha))]
-            }
-            return(res)
+    mu = switch(nls.link, "identity" = { # --------------------
+      if (is.null(C)) {
+        function (X, W, oneXotimesW, alpha, beta, sqrtlambda,
+                  gradientwithoutalpha = FALSE) {
+          res =
+            c(rowSums(W * (rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))),
+              sqrtlambda * beta)
+          attr(res, "gradient") =
+            rbind(oneXotimesW,
+                  cbind(matrix(0, nrow = length(beta), ncol = length(alpha)),
+                        diag(rep(sqrtlambda, length(beta)))))
+          if (gradientwithoutalpha) {
+            attr(res, "gradient") = attr(res, "gradient")[, -(1:length(alpha))]
           }
-        } else {
-          function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda,
-                    gradientwithoutalpha = FALSE) {
-            res =
-              c(rowSums(W * (rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))) +
-                  C %*% gamma,
-                sqrtlambda * beta)
-            attr(res, "gradient") =
-              rbind(cbind(oneXotimesW, C),
-                    cbind(matrix(0, nrow = length(beta), ncol = length(alpha)),
-                          diag(rep(sqrtlambda, length(beta))),
-                          matrix(0, nrow = length(beta), ncol = length(gamma))))
-            if (gradientwithoutalpha) {
-              attr(res, "gradient") = attr(res, "gradient")[, -(1:length(alpha))]
-            }
-            return(res)
-          }
-        },
-      log =
-        if (is.null(C)) {
-          function (X, W, oneXotimesW, alpha, beta, sqrtlambda,
-                    gradientwithoutalpha = FALSE) {
-            res = 0 # TODO
-
-            attr(res, "gradient") = 0
-
-            return(res)
-          }
-        } else {
-          function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda,
-                    gradientwithoutalpha = FALSE) {
-            g_i_h = exp(rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))
-            Wlog =
-              W * g_i_h /
-              (rowSums(W * g_i_h) %*% t(rep(1, ncol(W))))
-            res = c(log(rowSums(W * g_i_h)) + C %*% gamma,
-                    sqrtlambda * beta)
-            attr(res, "gradient") =
-              rbind(
-                cbind(
-                  as.matrix(
-                    do.call(cbind,
-                            apply(cbind(1, X),
-                                  2,
-                                  function(X_k) {as.data.frame(Wlog) * X_k}))),
-                  C),
-                cbind(
-                  matrix(0, nrow = length(beta), ncol = length(alpha)),
-                  diag(rep(sqrtlambda, length(beta))),
-                  matrix(0, nrow = length(beta), ncol = length(gamma))))
-            if (gradientwithoutalpha) {
-              attr(res, "gradient") = attr(res, "gradient")[, -(1:length(alpha))]
-            }
-            return(res)
-          }
-        },
-      logit =
-        if (is.null(C)) {
-          function (X, W, oneXotimesW, alpha, beta, sqrtlambda,
-                    gradientwithoutalpha = FALSE) {
-            res = 0 # TODO
-
-            attr(res, "gradient") = 0
-
-            return(res)
-          }
-        } else {
-          function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda,
-                    gradientwithoutalpha = FALSE) {
-            g_i_h = plogis(rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))
-            Wlogit =
-              W * g_i_h * (1 - g_i_h) /
-              ((rowSums(W * g_i_h) * (1 - rowSums(W * g_i_h))) %*% t(rep(1, ncol(W))))
-            res = c(qlogis(rowSums(W * g_i_h)) + C %*% gamma,
-                    sqrtlambda * beta)
-            attr(res, "gradient") =
-              rbind(
-                cbind(
-                  as.matrix(
-                    do.call(cbind,
-                            apply(cbind(1, X),
-                                  2,
-                                  function(X_k) {as.data.frame(Wlogit) * X_k}))),
-                  C),
-                cbind(
-                  matrix(0, nrow = length(beta), ncol = length(alpha)),
-                  diag(rep(sqrtlambda, length(beta))),
-                  matrix(0, nrow = length(beta), ncol = length(gamma))))
-            if (gradientwithoutalpha) {
-              attr(res, "gradient") = attr(res, "gradient")[, -(1:length(alpha))]
-            }
-            return(res)
-          }
+          return(res)
         }
+      } else {
+        function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda,
+                  gradientwithoutalpha = FALSE) {
+          res =
+            c(rowSums(W * (rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))) +
+                C %*% gamma,
+              sqrtlambda * beta)
+          attr(res, "gradient") =
+            rbind(cbind(oneXotimesW, C),
+                  cbind(matrix(0, nrow = length(beta), ncol = length(alpha)),
+                        diag(rep(sqrtlambda, length(beta))),
+                        matrix(0, nrow = length(beta), ncol = length(gamma))))
+          if (gradientwithoutalpha) {
+            attr(res, "gradient") = attr(res, "gradient")[, -(1:length(alpha))]
+          }
+          return(res)
+        }
+      }
+    }, "log" = { # ----------------------------------------
+      if (is.null(C)) {
+        function (X, W, oneXotimesW, alpha, beta, sqrtlambda,
+                  gradientwithoutalpha = FALSE) {
+          res = 0 # TODO
+
+          attr(res, "gradient") = 0
+
+          return(res)
+        }
+      } else {
+        function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda,
+                  gradientwithoutalpha = FALSE) {
+          g_i_h = exp(rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))
+          Wlog =
+            W * g_i_h /
+            (rowSums(W * g_i_h) %*% t(rep(1, ncol(W))))
+          res = c(log(rowSums(W * g_i_h)) + C %*% gamma,
+                  sqrtlambda * beta)
+          attr(res, "gradient") =
+            rbind(
+              cbind(
+                as.matrix(
+                  do.call(cbind,
+                          apply(cbind(1, X),
+                                2,
+                                function(X_k) {as.data.frame(Wlog) * X_k}))),
+                C),
+              cbind(
+                matrix(0, nrow = length(beta), ncol = length(alpha)),
+                diag(rep(sqrtlambda, length(beta))),
+                matrix(0, nrow = length(beta), ncol = length(gamma))))
+          if (gradientwithoutalpha) {
+            attr(res, "gradient") = attr(res, "gradient")[, -(1:length(alpha))]
+          }
+          return(res)
+        }
+      }
+    }, "logit" = { # ----------------------------------------
+      if (is.null(C)) {
+        function (X, W, oneXotimesW, alpha, beta, sqrtlambda,
+                  gradientwithoutalpha = FALSE) {
+          res = 0 # TODO
+
+          attr(res, "gradient") = 0
+
+          return(res)
+        }
+      } else {
+        function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda,
+                  gradientwithoutalpha = FALSE) {
+          g_i_h = plogis(rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))
+          Wlogit =
+            W * g_i_h * (1 - g_i_h) /
+            ((rowSums(W * g_i_h) * (1 - rowSums(W * g_i_h))) %*% t(rep(1, ncol(W))))
+          res = c(qlogis(rowSums(W * g_i_h)) + C %*% gamma,
+                  sqrtlambda * beta)
+          attr(res, "gradient") =
+            rbind(
+              cbind(
+                as.matrix(
+                  do.call(cbind,
+                          apply(cbind(1, X),
+                                2,
+                                function(X_k) {as.data.frame(Wlogit) * X_k}))),
+                C),
+              cbind(
+                matrix(0, nrow = length(beta), ncol = length(alpha)),
+                diag(rep(sqrtlambda, length(beta))),
+                matrix(0, nrow = length(beta), ncol = length(gamma))))
+          if (gradientwithoutalpha) {
+            attr(res, "gradient") = attr(res, "gradient")[, -(1:length(alpha))]
+          }
+          return(res)
+        }
+      }
+    }
     )
 
     result = list()
