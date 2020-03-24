@@ -787,24 +787,21 @@ ctRUV = function (X, W, Y, C = NULL,
           1,
           function (y, X, W, C, oneXotimesW, mu) {
             GCVstats = data.frame()
+            Ps = list()
             start_alphas = list()
             start_betas  = list()
             start_gammas = list()
-            sigma2 = NA
 
-            start_alpha_0 =
-              start_alpha = rep(median(y, na.rm = TRUE), ncol(W))
-            lower_alpha   = rep(min(y, na.rm = TRUE), ncol(W))
-            upper_alpha   = rep(max(y, na.rm = TRUE), ncol(W))
-            start_beta_0 =
-              start_beta  = matrix(   0, nrow = ncol(W), ncol = ncol(X))
-            lower_beta    = matrix(-Inf, nrow = ncol(W), ncol = ncol(X))
-            upper_beta    = matrix( Inf, nrow = ncol(W), ncol = ncol(X))
+            start_alpha = rep(median(y, na.rm = TRUE), ncol(W))
+            lower_alpha = rep(min(y, na.rm = TRUE), ncol(W))
+            upper_alpha = rep(max(y, na.rm = TRUE), ncol(W))
+            start_beta  = matrix(   0, nrow = ncol(W), ncol = ncol(X))
+            lower_beta  = matrix(-Inf, nrow = ncol(W), ncol = ncol(X))
+            upper_beta  = matrix( Inf, nrow = ncol(W), ncol = ncol(X))
             if (!is.null(C)) {
-              start_gamma_0 =
-                start_gamma = rep(   0, ncol(C))
-              lower_gamma   = rep(-Inf, ncol(C))
-              upper_gamma   = rep( Inf, ncol(C))
+              start_gamma = rep(   0, ncol(C))
+              lower_gamma = rep(-Inf, ncol(C))
+              upper_gamma = rep( Inf, ncol(C))
             }
 
             if (is.null(C)) {
@@ -819,9 +816,9 @@ ctRUV = function (X, W, Y, C = NULL,
                   mu(X, W, C, oneXotimesW, start_alpha, start_beta, start_gamma, 0),
                   "gradient")[, seq(1, ncol(W) * ncol(X)) + ncol(W)])$d
             }
-            # Decreasing order improves convergence.
-            # start_* is taken from preceding nls run
-            # If failed, tried again with start_*_0
+            # sqrtlambda in decreasing order improves convergence.
+            # start_* is taken from preceding nls run.
+            # If failed, try nls again with alpha fixed.
             sqrtlambdalist = c(
               exp(seq(log(max(svdd)) + 1,
                       log(min(svdd)) - 1,
@@ -829,7 +826,6 @@ ctRUV = function (X, W, Y, C = NULL,
               0)
 
             for (sqrtlambda in sqrtlambdalist) {
-              print(sqrtlambda)
               if (is.null(C)) {
                 mod = nls(y ~ mu(X, W, oneXotimesW, alpha, beta, sqrtlambda),
                           data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
@@ -844,27 +840,28 @@ ctRUV = function (X, W, Y, C = NULL,
                                     upper_beta),
                           algorithm = "port",
                           control = nls.control(warnOnly = TRUE))
-                if (! mod$convInfo$isConv) {
-                  mod = nls(y ~ mu(X, W, oneXotimesW, alpha, beta, sqrtlambda),
+                if (mod$convInfo$isConv) {
+                  start_alpha = coef(mod)[seq(1, ncol(W))]
+                  start_beta  = matrix(coef(mod)[seq(1, ncol(W) * ncol(X)) + ncol(W)],
+                                       nrow = ncol(W), ncol = ncol(X))
+                } else {
+                  start_alpha = coef(mod)[seq(1, ncol(W))]
+                  mod = nls(y ~ mu(X, W, oneXotimesW, start_alpha, beta, sqrtlambda,
+                                   gradientwithoutalpha = TRUE),
                             data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
                                         X = as.matrix(X),
                                         W = W,
                                         oneXotimesW = oneXotimesW),
-                            start = list(alpha = start_alpha_0,
-                                         beta  = start_beta_0),
-                            lower = c(lower_alpha,
-                                      lower_beta),
-                            upper = c(upper_alpha,
-                                      upper_beta),
+                            start = list(beta = start_beta),
                             algorithm = "port",
                             control = nls.control(warnOnly = TRUE))
+                  if (mod$convInfo$isConv) {
+                    start_beta  = matrix(coef(mod)[seq(1, ncol(W) * ncol(X))],
+                                         nrow = ncol(W), ncol = ncol(X))
+                  } else {
+                    next()
+                  }
                 }
-                if (! mod$convInfo$isConv) {
-                  next()
-                }
-                start_alpha = coef(mod)[seq(1, ncol(W))]
-                start_beta  = matrix(coef(mod)[seq(1, ncol(W) * ncol(X)) + ncol(W)],
-                                     nrow = ncol(W), ncol = ncol(X))
               } else {
                 mod = nls(y ~ mu(X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda),
                           data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
@@ -882,7 +879,6 @@ ctRUV = function (X, W, Y, C = NULL,
                                     upper_beta,
                                     upper_gamma),
                           algorithm = "port",
-                          trace = TRUE,
                           control = nls.control(warnOnly = TRUE))
                 if (mod$convInfo$isConv) {
                   start_alpha = coef(mod)[seq(1, ncol(W))]
@@ -901,14 +897,13 @@ ctRUV = function (X, W, Y, C = NULL,
                             start = list(beta  = start_beta,
                                          gamma = start_gamma),
                             algorithm = "port",
-                            trace = TRUE,
                             control = nls.control(warnOnly = TRUE))
-                  if (! mod$convInfo$isConv) {
-                    next()
-                  } else {
+                  if (mod$convInfo$isConv) {
                     start_beta  = matrix(coef(mod)[seq(1, ncol(W) * ncol(X))],
                                          nrow = ncol(W), ncol = ncol(X))
                     start_gamma = coef(mod)[seq(1, ncol(C)) + ncol(W) * ncol(X)]
+                  } else {
+                    next()
                   }
                 }
               }
@@ -929,10 +924,8 @@ ctRUV = function (X, W, Y, C = NULL,
                 t(x[1:length(y), ])
               dof = sum(diag(P))
               RSS = sum((residuals(mod)[1:length(y)])^2)
-              if (sqrtlambda == 0) {
-                sigma2 = RSS / (length(y) - dof)
-              }
               GCV = length(y) * RSS / (length(y) - dof)^2
+              # sigma2 = RSS / sum(diag((diag(1, nrow(P)) - P) %*% (diag(1, nrow(P)) - P)))  # slow
               # AIC = 2 * dof +
               #   RSS / sigma2 +
               #   length(y) * log(2 * pi * sigma2)
@@ -943,15 +936,29 @@ ctRUV = function (X, W, Y, C = NULL,
                 GCVstats,
                 data.frame(sqrtlambda = sqrtlambda,
                            dof = dof,
+                           RSS = RSS,
                            GCV = GCV))
+              Ps = c(Ps, list(P))
               start_alphas = c(start_alphas, list(start_alpha))
               start_betas  = c(start_betas,  list(start_beta))
               start_gammas = c(start_gammas, list(start_gamma))
             }
-            if (0 %in% GCVstats$sqrtlambda) {
+
+            # Discard this marker, if nls convergence fails in more than half of sqrtlambda's.
+            # For sqrtlamda = 0 in test = nls.log, failure is uncommon.
+            if (nrow(GCVstats) < 0.5 * length(sqrtlambdalist)) {
+              res =
+                data.frame(estimate     = NA,
+                           statistic    = NA,
+                           p.value      = NA,
+                           celltypeterm = c(colnames(oneXotimesW), colnames(C)))
+            } else {
               i = which.min(GCVstats$GCV)
               sqrtlambda = GCVstats$sqrtlambda[i]
               dof = GCVstats$dof[i]
+              RSS = GCVstats$RSS[i]
+              P = Ps[[i]]
+              sigma2 = RSS / sum(diag((diag(1, nrow(P)) - P) %*% (diag(1, nrow(P)) - P)))
               start_alpha = start_alphas[[i]]
               start_beta  = start_betas[[i]]
               start_gamma = start_gammas[[i]]
@@ -979,13 +986,6 @@ ctRUV = function (X, W, Y, C = NULL,
               res$statistic = res$estimate / SE
               res$p.value = pt(- abs(res$statistic), df = length(y) - dof) * 2
               res$celltypeterm = c(colnames(oneXotimesW), colnames(C))
-            } else {
-              res =
-                data.frame(estimate     = NA,
-                           statistic    = NA,
-                           p.value      = NA,
-                           celltypeterm = c(colnames(oneXotimesW), colnames(C)))
-
             }
             return(res)
           },
