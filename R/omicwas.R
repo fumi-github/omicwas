@@ -918,10 +918,15 @@ ctRUV = function (X, W, Y, C = NULL,
                             sqrtlambda),
                          "gradient")
               }
-              P =
-                x[1:length(y), ] %*%
-                solve(t(x) %*% x) %*%
-                t(x[1:length(y), ])
+              e = try({
+                P =
+                  x[1:length(y), ] %*%
+                  solve(t(x) %*% x) %*%
+                  t(x[1:length(y), ])
+              })
+              if (class(e) == "try-error") {
+                next()
+              }
               dof = sum(diag(P))
               RSS = sum((residuals(mod)[1:length(y)])^2)
               GCV = length(y) * RSS / (length(y) - dof)^2
