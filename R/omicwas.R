@@ -666,6 +666,7 @@ ctRUV = function (X, W, Y, C = NULL,
       if (is.null(C)) {
         function (X, W, oneXotimesW, alpha, beta, sqrtlambda,
                   gradientwithoutalpha = FALSE) {
+          beta = matrix(beta, nrow = ncol(W))
           res =
             c(rowSums(W * (rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))),
               sqrtlambda * beta)
@@ -681,6 +682,7 @@ ctRUV = function (X, W, Y, C = NULL,
       } else {
         function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda,
                   gradientwithoutalpha = FALSE) {
+          beta = matrix(beta, nrow = ncol(W))
           res =
             c(rowSums(W * (rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))) +
                 C %*% gamma,
@@ -700,6 +702,7 @@ ctRUV = function (X, W, Y, C = NULL,
       if (is.null(C)) {
         function (X, W, oneXotimesW, alpha, beta, sqrtlambda,
                   gradientwithoutalpha = FALSE) {
+          beta = matrix(beta, nrow = ncol(W))
           res = 0 # TODO
 
           attr(res, "gradient") = 0
@@ -709,7 +712,9 @@ ctRUV = function (X, W, Y, C = NULL,
       } else {
         function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda,
                   gradientwithoutalpha = FALSE) {
+          beta = matrix(beta, nrow = ncol(W))
           g_i_h = exp(rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))
+          g_i_h[is.infinite(g_i_h)] = .Machine$double.xmax
           Wlog =
             W * g_i_h /
             (rowSums(W * g_i_h) %*% t(rep(1, ncol(W))))
@@ -738,6 +743,7 @@ ctRUV = function (X, W, Y, C = NULL,
       if (is.null(C)) {
         function (X, W, oneXotimesW, alpha, beta, sqrtlambda,
                   gradientwithoutalpha = FALSE) {
+          beta = matrix(beta, nrow = ncol(W))
           res = 0 # TODO
 
           attr(res, "gradient") = 0
@@ -747,6 +753,7 @@ ctRUV = function (X, W, Y, C = NULL,
       } else {
         function (X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda,
                   gradientwithoutalpha = FALSE) {
+          beta = matrix(beta, nrow = ncol(W))
           g_i_h = plogis(rep(1, nrow(X)) %*% t(alpha) + X %*% t(beta))
           Wlogit =
             W * g_i_h * (1 - g_i_h) /
