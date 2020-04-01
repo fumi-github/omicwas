@@ -962,11 +962,12 @@ ctRUV = function (X, W, Y, C = NULL,
               return(res)
             }
 
-            mod = nls_result$mod
-            RSS = sum((residuals(mod)[1:length(y)])^2)
-            P = nls_result$P
-            sigma2 = RSS / sum(diag((diag(1, nrow(P)) - P) %*% (diag(1, nrow(P)) - P)))
+            start_alpha = nls_result$start_alpha
             start_beta  = nls_result$start_beta
+            mod         = nls_result$mod
+            P           = nls_result$P
+            RSS = sum((residuals(mod)[1:length(y)])^2)
+            sigma2 = RSS / sum(diag((diag(1, nrow(P)) - P) %*% (diag(1, nrow(P)) - P)))
             # optimal lambda according to [Hoerl 1975]
             sqrtlambda = sqrt(sigma2 * length(start_beta) / sum(start_beta^2))
             # in case of nls convergence failure, try from similar values
@@ -974,6 +975,7 @@ ctRUV = function (X, W, Y, C = NULL,
               sqrtlambda,
               sqrtlambdalist[order(abs(sqrtlambdalist - sqrtlambda))])
 
+            start_beta = start_beta * 0 # only inherit start_alpha from above
             for (sqrtlambda in sqrtlambdalist) {
               nls_result = my_nls(y, X, W, oneXotimesW, C,
                                   start_alpha, start_beta, start_gamma,
