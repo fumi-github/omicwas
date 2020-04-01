@@ -805,7 +805,11 @@ ctRUV = function (X, W, Y, C = NULL,
             start_beta  = matrix(   0, nrow = ncol(W), ncol = ncol(X))
             lower_beta  = matrix(-Inf, nrow = ncol(W), ncol = ncol(X))
             upper_beta  = matrix( Inf, nrow = ncol(W), ncol = ncol(X))
-            if (!is.null(C)) {
+            if (is.null(C)) {
+              start_gamma = NULL
+              lower_gamma = NULL
+              upper_gamma = NULL
+            } else {
               start_gamma = rep(   0, ncol(C))
               lower_gamma = rep(-Inf, ncol(C))
               upper_gamma = rep( Inf, ncol(C))
@@ -832,7 +836,11 @@ ctRUV = function (X, W, Y, C = NULL,
                       length.out = 20)),
               0)
 
-            for (sqrtlambda in sqrtlambdalist) {
+            my_nls = function (y, X, W, oneXotimesW, C,
+                               start_alpha, start_beta, start_gamma,
+                               lower_alpha, lower_beta, lower_gamma,
+                               upper_alpha, upper_beta, upper_gamma,
+                               sqrtlambda) {
               if (is.null(C)) {
                 mod = nls(y ~ mu(X, W, oneXotimesW, alpha, beta, sqrtlambda),
                           data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
@@ -866,9 +874,13 @@ ctRUV = function (X, W, Y, C = NULL,
                     start_beta  = matrix(coef(mod)[seq(1, ncol(W) * ncol(X))],
                                          nrow = ncol(W), ncol = ncol(X))
                   } else {
-                    next()
+                    return("error")
                   }
                 }
+                return(list(start_alpha = start_alpha,
+                            start_beta  = start_beta,
+                            start_gamma = NULL,
+                            mod         = mod))
               } else {
                 mod = nls(y ~ mu(X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda),
                           data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
@@ -910,9 +922,29 @@ ctRUV = function (X, W, Y, C = NULL,
                                          nrow = ncol(W), ncol = ncol(X))
                     start_gamma = coef(mod)[seq(1, ncol(C)) + ncol(W) * ncol(X)]
                   } else {
-                    next()
+                    return("error")
                   }
                 }
+                return(list(start_alpha = start_alpha,
+                            start_beta  = start_beta,
+                            start_gamma = start_gamma,
+                            mod         = mod))
+              }
+            }
+
+            for (sqrtlambda in sqrtlambdalist) {
+              nls_result = my_nls(y, X, W, oneXotimesW, C,
+                                  start_alpha, start_beta, start_gamma,
+                                  lower_alpha, lower_beta, lower_gamma,
+                                  upper_alpha, upper_beta, upper_gamma,
+                                  sqrtlambda)
+              if (nls_result[[1]] == "error") {
+                next()
+              } else {
+                start_alpha = nls_result$start_alpha
+                start_beta  = nls_result$start_beta
+                start_gamma = nls_result$start_gamma
+                mod         = nls_result$mod
               }
               if (is.null(C)) {
                 x = attr(mu(X, W, oneXotimesW,
