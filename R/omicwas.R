@@ -793,12 +793,6 @@ ctRUV = function (X, W, Y, C = NULL,
                   min((i+1) * batchsize, totalsize)), ],
           1,
           function (y, X, W, C, oneXotimesW, mu) {
-            GCVstats = data.frame()
-            Ps = list()
-            start_alphas = list()
-            start_betas  = list()
-            start_gammas = list()
-
             start_alpha = rep(median(y, na.rm = TRUE), ncol(W))
             lower_alpha = rep(min(y, na.rm = TRUE), ncol(W))
             upper_alpha = rep(max(y, na.rm = TRUE), ncol(W))
@@ -827,14 +821,11 @@ ctRUV = function (X, W, Y, C = NULL,
                   mu(X, W, C, oneXotimesW, start_alpha, start_beta, start_gamma, 0),
                   "gradient")[, seq(1, ncol(W) * ncol(X)) + ncol(W)])$d
             }
-            # sqrtlambda in decreasing order improves convergence.
-            # start_* is taken from preceding nls run.
-            # If failed, try nls again with alpha fixed.
             sqrtlambdalist = c(
-              exp(seq(log(max(svdd)) + 1,
-                      log(min(svdd)) - 1,
-                      length.out = 20)),
-              0)
+              0,
+              exp(seq(log(min(svdd)) - 1,
+                      log(max(svdd)) + 1,
+                      length.out = 20)))
 
             my_nls = function (y, X, W, oneXotimesW, C,
                                start_alpha, start_beta, start_gamma,
@@ -877,10 +868,6 @@ ctRUV = function (X, W, Y, C = NULL,
                     return("error")
                   }
                 }
-                return(list(start_alpha = start_alpha,
-                            start_beta  = start_beta,
-                            start_gamma = NULL,
-                            mod         = mod))
               } else {
                 mod = nls(y ~ mu(X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda),
                           data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
@@ -925,27 +912,8 @@ ctRUV = function (X, W, Y, C = NULL,
                     return("error")
                   }
                 }
-                return(list(start_alpha = start_alpha,
-                            start_beta  = start_beta,
-                            start_gamma = start_gamma,
-                            mod         = mod))
               }
-            }
-
-            for (sqrtlambda in sqrtlambdalist) {
-              nls_result = my_nls(y, X, W, oneXotimesW, C,
-                                  start_alpha, start_beta, start_gamma,
-                                  lower_alpha, lower_beta, lower_gamma,
-                                  upper_alpha, upper_beta, upper_gamma,
-                                  sqrtlambda)
-              if (nls_result[[1]] == "error") {
-                next()
-              } else {
-                start_alpha = nls_result$start_alpha
-                start_beta  = nls_result$start_beta
-                start_gamma = nls_result$start_gamma
-                mod         = nls_result$mod
-              }
+              # compute projection matrix
               if (is.null(C)) {
                 x = attr(mu(X, W, oneXotimesW,
                             start_alpha, start_beta,
@@ -964,73 +932,96 @@ ctRUV = function (X, W, Y, C = NULL,
                   t(x[1:length(y), ])
               })
               if (class(e) == "try-error") {
-                next()
+                return("error")
               }
-              dof = sum(diag(P))
-              RSS = sum((residuals(mod)[1:length(y)])^2)
-              GCV = length(y) * RSS / (length(y) - dof)^2
-              # sigma2 = RSS / sum(diag((diag(1, nrow(P)) - P) %*% (diag(1, nrow(P)) - P)))  # slow
-              # AIC = 2 * dof +
-              #   RSS / sigma2 +
-              #   length(y) * log(2 * pi * sigma2)
-              # BIC = log(length(y)) * dof +
-              #   RSS / sigma2 +
-              #   length(y) * log(2 * pi * sigma2)
-              GCVstats = rbind(
-                GCVstats,
-                data.frame(sqrtlambda = sqrtlambda,
-                           dof = dof,
-                           RSS = RSS,
-                           GCV = GCV))
-              Ps = c(Ps, list(P))
-              start_alphas = c(start_alphas, list(start_alpha))
-              start_betas  = c(start_betas,  list(start_beta))
-              start_gammas = c(start_gammas, list(start_gamma))
+              return(list(start_alpha = start_alpha,
+                          start_beta  = start_beta,
+                          start_gamma = start_gamma,
+                          mod         = mod,
+                          P           = P))
             }
 
-            # Discard this marker, if nls convergence fails in more than half of sqrtlambda's.
-            # For sqrtlamda = 0 in test = nls.log, failure is uncommon.
-            if (nrow(GCVstats) < 0.5 * length(sqrtlambdalist)) {
+            # sqrtlambda = 0 or the smallest one that nls converges
+            for (sqrtlambda in sqrtlambdalist) {
+              nls_result = my_nls(y, X, W, oneXotimesW, C,
+                                  start_alpha, start_beta, start_gamma,
+                                  lower_alpha, lower_beta, lower_gamma,
+                                  upper_alpha, upper_beta, upper_gamma,
+                                  sqrtlambda)
+              if (! is.character(nls_result)) { # not "error"
+                break()
+              }
+            }
+            # Discard this marker, if nls convergence fails in all of sqrtlambda's.
+            if (is.character(nls_result)) {
               res =
                 data.frame(estimate     = NA,
                            statistic    = NA,
                            p.value      = NA,
                            celltypeterm = c(colnames(oneXotimesW), colnames(C)))
-            } else {
-              i = which.min(GCVstats$GCV)
-              sqrtlambda = GCVstats$sqrtlambda[i]
-              dof = GCVstats$dof[i]
-              RSS = GCVstats$RSS[i]
-              P = Ps[[i]]
-              sigma2 = RSS / sum(diag((diag(1, nrow(P)) - P) %*% (diag(1, nrow(P)) - P)))
-              start_alpha = start_alphas[[i]]
-              start_beta  = start_betas[[i]]
-              start_gamma = start_gammas[[i]]
-              res = data.frame(estimate = c(start_alpha, start_beta, start_gamma))
-
-              # Wald test
-              if (is.null(C)) {
-                x = attr(mu(X, W, oneXotimesW,
-                            start_alpha, start_beta,
-                            sqrtlambda),
-                         "gradient")
-              } else {
-                x = attr(mu(X, W, C, oneXotimesW,
-                            start_alpha, start_beta, start_gamma,
-                            sqrtlambda),
-                         "gradient")
-              }
-              sigma2Hstar =
-                t(x[1:length(y), ]) %*%
-                x[1:length(y), ]
-              sigma2Hstarlambdainv = solve(t(x) %*% x)
-              SE = sqrt(sigma2 * diag(sigma2Hstarlambdainv %*%
-                                        sigma2Hstar %*%
-                                        sigma2Hstarlambdainv))
-              res$statistic = res$estimate / SE
-              res$p.value = pt(- abs(res$statistic), df = length(y) - dof) * 2
-              res$celltypeterm = c(colnames(oneXotimesW), colnames(C))
+              return(res)
             }
+
+            mod = nls_result$mod
+            RSS = sum((residuals(mod)[1:length(y)])^2)
+            P = nls_result$P
+            sigma2 = RSS / sum(diag((diag(1, nrow(P)) - P) %*% (diag(1, nrow(P)) - P)))
+            start_beta  = nls_result$start_beta
+            # optimal lambda according to [Hoerl 1975]
+            sqrtlambda = sqrt(sigma2 * length(start_beta) / sum(start_beta^2))
+            # in case of nls convergence failure, try from similar values
+            sqrtlambdalist = c(
+              sqrtlambda,
+              sqrtlambdalist[order(abs(sqrtlambdalist - sqrtlambda))])
+
+            for (sqrtlambda in sqrtlambdalist) {
+              nls_result = my_nls(y, X, W, oneXotimesW, C,
+                                  start_alpha, start_beta, start_gamma,
+                                  lower_alpha, lower_beta, lower_gamma,
+                                  upper_alpha, upper_beta, upper_gamma,
+                                  sqrtlambda)
+              if (! is.character(nls_result)) { # not "error"
+                break()
+              }
+            }
+
+            start_alpha = nls_result$start_alpha
+            start_beta  = nls_result$start_beta
+            start_gamma = nls_result$start_gamma
+            P           = nls_result$P
+            dof = sum(diag(P))
+            # RSS = sum((residuals(mod)[1:length(y)])^2)
+            # GCV = length(y) * RSS / (length(y) - dof)^2
+            # AIC = 2 * dof +
+            #   RSS / sigma2 +
+            #   length(y) * log(2 * pi * sigma2)
+            # BIC = log(length(y)) * dof +
+            #   RSS / sigma2 +
+            #   length(y) * log(2 * pi * sigma2)
+
+            res = data.frame(estimate = c(start_alpha, start_beta, start_gamma))
+            # Wald test
+            if (is.null(C)) {
+              x = attr(mu(X, W, oneXotimesW,
+                          start_alpha, start_beta,
+                          sqrtlambda),
+                       "gradient")
+            } else {
+              x = attr(mu(X, W, C, oneXotimesW,
+                          start_alpha, start_beta, start_gamma,
+                          sqrtlambda),
+                       "gradient")
+            }
+            sigma2Hstar =
+              t(x[1:length(y), ]) %*%
+              x[1:length(y), ]
+            sigma2Hstarlambdainv = solve(t(x) %*% x)
+            SE = sqrt(sigma2 * diag(sigma2Hstarlambdainv %*%
+                                      sigma2Hstar %*%
+                                      sigma2Hstarlambdainv))
+            res$statistic = res$estimate / SE
+            res$p.value = pt(- abs(res$statistic), df = length(y) - dof) * 2
+            res$celltypeterm = c(colnames(oneXotimesW), colnames(C))
             return(res)
           },
           X, W, C, oneXotimesW, mu))
