@@ -971,8 +971,25 @@ ctRUV = function (X, W, Y, C = NULL,
             P           = nls_result$P
             RSS = sum((residuals(mod)[1:length(y)])^2)
             sigma2 = RSS / sum(diag((diag(1, nrow(P)) - P) %*% (diag(1, nrow(P)) - P)))
-            # optimal lambda according to [Hoerl 1975]
-            sqrtlambda = sqrt(sigma2 * length(start_beta) / sum(start_beta^2))
+
+            # # optimal lambda according to [Hoerl 1975]
+            # sqrtlambda = sqrt(sigma2 * length(start_beta) / sum(start_beta^2))
+
+            # optimal lambda according to [Cule and Iorio 2013]
+            # Simplified such that sigma2 is reused.
+            betaPCR = t(svdv) %*% start_beta  # alpha in [Cule and Iorio 2013]
+            dataPCR = data.frame()
+            for (r in 1:length(betaPCR)) {
+              lambda = sigma2 / mean((betaPCR[1:r])^2)
+              dof = sum(1 / (1 + lambda / svdd^2)^2)
+              dataPCR = rbind(dataPCR,
+                              data.frame(r = r,
+                                         lambda = lambda,
+                                         dof = dof,
+                                         diff = r - dof))
+            }
+            sqrtlambda = sqrt(dataPCR$lambda[which.min(dataPCR$diff)])
+
             # in case of nls convergence failure, try from similar values
             sqrtlambdalist = c(
               sqrtlambda,
