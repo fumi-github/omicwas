@@ -815,6 +815,7 @@ ctRUV = function (X, W, Y, C = NULL,
                   mu(X, W, oneXotimesW, start_alpha, start_beta, 0),
                   "gradient")[, seq(1, ncol(W) * ncol(X)) + ncol(W)])
               svdd = x$d
+              svdu = x$u
               svdv = x$v
             } else {
               x =
@@ -822,6 +823,7 @@ ctRUV = function (X, W, Y, C = NULL,
                   mu(X, W, C, oneXotimesW, start_alpha, start_beta, start_gamma, 0),
                   "gradient")[, seq(1, ncol(W) * ncol(X)) + ncol(W)])
               svdd = x$d
+              svdu = x$u
               svdv = x$v
             }
             sqrtlambdalist = c(
