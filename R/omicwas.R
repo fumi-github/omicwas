@@ -976,37 +976,49 @@ ctRUV = function (X, W, Y, C = NULL,
             sigma2 = RSS / sum(diag((diag(1, nrow(P)) - P) %*% (diag(1, nrow(P)) - P)))
 
             # # optimal lambda according to [Hoerl 1975]
-            # sqrtlambda = sqrt(sigma2 * length(start_beta) / sum(start_beta^2))
-
             # yattributabletobeta =
             #   mu(X, W, C, oneXotimesW, start_alpha, start_beta, start_gamma, sqrtlambda) -
             #   mu(X, W, C, oneXotimesW, start_alpha, start_beta * 0, start_gamma, sqrtlambda)
             # yattributabletobeta = yattributabletobeta[1:length(y)]
             # (t(svdu[1:length(y), ]) %*% yattributabletobeta) / svdd == betaPCR below
-            SS_beta_adjusted =
-              # sum(((t(svdu[1:length(y), ]) %*% yattributabletobeta) / svdd)^2) -
-              sum(start_beta^2) -
-              sum(sigma2 / svdd^2)
-            if (SS_beta_adjusted > 0) {
-              sqrtlambda = sqrt(sigma2 * length(start_beta) / SS_beta_adjusted)
-            } else {
-              sqrtlambda = max(svdd)
-            }
-
-            # # optimal lambda according to [Cule and Iorio 2013]
-            # # Simplified such that sigma2 is reused.
-            # betaPCR = t(svdv) %*% start_beta  # alpha in [Cule and Iorio 2013]
-            # dataPCR = data.frame()
-            # for (r in 1:length(betaPCR)) {
-            #   lambda = sigma2 / mean((betaPCR[1:r])^2)
-            #   dof = sum(1 / (1 + lambda / svdd^2)^2)
-            #   dataPCR = rbind(dataPCR,
-            #                   data.frame(r = r,
-            #                              lambda = lambda,
-            #                              dof = dof,
-            #                              diff = r - dof))
+            # mean_betasquared_adjusted =
+            #   mean(start_beta^2) - mean(sigma2 / svdd^2) # unbiased
+            # if (mean_betasquared_adjusted > 0) {
+            #   sqrtlambda = sqrt(sigma2 / mean_betasquared_adjusted)
+            # } else {
+            #   sqrtlambda = svdd[1]
             # }
-            # sqrtlambda = sqrt(dataPCR$lambda[which.min(dataPCR$diff)])
+
+            # optimal lambda according to [Cule and Iorio 2013]
+            # Simplified such that sigma2 is reused.
+            betaPCR = t(svdv) %*% start_beta  # alpha in [Cule and Iorio 2013]
+            dataPCR = data.frame()
+            for (r in 1:length(betaPCR)) {
+              mean_betaPCRsquared_adjusted =
+                mean((betaPCR^2 - sigma2 / svdd^2)[1:r]) # unbiased
+              if (mean_betaPCRsquared_adjusted > 0) {
+                lambda = sigma2 / mean_betaPCRsquared_adjusted
+              } else {
+                lambda = svdd[1]^2
+              }
+              dof = sum(1 / (1 + lambda / svdd^2)^2)
+              dofres = sum(1 - 1 / (1 + svdd^2 / lambda)^2)
+              twolnlik = sum(
+                svdd^2 * betaPCR^2 / sigma2 *
+                  (1 - 1 / (1 + svdd^2 / lambda)^2))
+              MSE =
+                sum(1 / (1 + svdd^2 / lambda)^2 * betaPCR^2) +
+                sum(1 / (1 + lambda / svdd^2)^2 * sigma2 / svdd^2)
+              dataPCR = rbind(dataPCR,
+                              data.frame(r = r,
+                                         lambda = lambda,
+                                         dof = dof,
+                                         diff = r - dof,
+                                         dofres = dofres,
+                                         AIC = 2 * dof - twolnlik,
+                                         MSE = MSE))
+            }
+            sqrtlambda = sqrt(dataPCR$lambda[which.min(dataPCR$diff)])
 
             # in case of nls convergence failure, try from similar values
             sqrtlambdalist = c(
@@ -1014,6 +1026,7 @@ ctRUV = function (X, W, Y, C = NULL,
               sqrtlambdalist[order(abs(sqrtlambdalist - sqrtlambda))])
 
             start_beta = start_beta * 0 # only inherit start_alpha from above
+            # GCVdata = data.frame()
             for (sqrtlambda in sqrtlambdalist) {
               nls_result = my_nls(y, X, W, oneXotimesW, C,
                                   start_alpha, start_beta, start_gamma,
@@ -1028,6 +1041,7 @@ ctRUV = function (X, W, Y, C = NULL,
             start_alpha = nls_result$start_alpha
             start_beta  = nls_result$start_beta
             start_gamma = nls_result$start_gamma
+            mod         = nls_result$mod
             P           = nls_result$P
             dof = sum(diag(P))
             # RSS = sum((residuals(mod)[1:length(y)])^2)
@@ -1038,6 +1052,11 @@ ctRUV = function (X, W, Y, C = NULL,
             # BIC = log(length(y)) * dof +
             #   RSS / sigma2 +
             #   length(y) * log(2 * pi * sigma2)
+            # GCVdata = rbind(GCVdata,
+            #                 data.frame(
+            #                   sqrtlambda = sqrtlambda,
+            #                   dof = dof,
+            #                   GCV = GCV))
 
             res = data.frame(estimate = c(start_alpha, start_beta, start_gamma))
             # Wald test
@@ -1060,7 +1079,7 @@ ctRUV = function (X, W, Y, C = NULL,
                                       sigma2Hstar %*%
                                       sigma2Hstarlambdainv))
             res$statistic = res$estimate / SE
-            res$p.value = pt(- abs(res$statistic), df = length(y) - dof) * 2
+            res$p.value = pt(- abs(res$statistic), df = length(y) - dof) * 2 # this dof appropriate?
             res$celltypeterm = c(colnames(oneXotimesW), colnames(C))
             return(res)
           },
