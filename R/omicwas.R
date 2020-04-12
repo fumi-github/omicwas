@@ -988,37 +988,45 @@ ctRUV = function (X, W, Y, C = NULL,
             # } else {
             #   sqrtlambda = svdd[1]
             # }
-
-            # optimal lambda according to [Cule and Iorio 2013]
-            # Simplified such that sigma2 is reused.
             betaPCR = t(svdv) %*% start_beta  # alpha in [Cule and Iorio 2013]
-            dataPCR = data.frame()
-            for (r in 1:length(betaPCR)) {
-              mean_betaPCRsquared_adjusted =
-                mean((betaPCR^2 - sigma2 / svdd^2)[1:r]) # unbiased
-              if (mean_betaPCRsquared_adjusted > 0) {
-                lambda = sigma2 / mean_betaPCRsquared_adjusted
-              } else {
-                lambda = svdd[1]^2
-              }
-              dof = sum(1 / (1 + lambda / svdd^2)^2)
-              dofres = sum(1 - 1 / (1 + svdd^2 / lambda)^2)
-              twolnlik = sum(
-                svdd^2 * betaPCR^2 / sigma2 *
-                  (1 - 1 / (1 + svdd^2 / lambda)^2))
-              MSE =
-                sum(1 / (1 + svdd^2 / lambda)^2 * betaPCR^2) +
-                sum(1 / (1 + lambda / svdd^2)^2 * sigma2 / svdd^2)
-              dataPCR = rbind(dataPCR,
-                              data.frame(r = r,
-                                         lambda = lambda,
-                                         dof = dof,
-                                         diff = r - dof,
-                                         dofres = dofres,
-                                         AIC = 2 * dof - twolnlik,
-                                         MSE = MSE))
+            weightedmean_betaPCRsquared_adjusted =
+              sum((svdd * betaPCR)^2 / sigma2 - 1) / sum(svdd^2)
+            if (weightedmean_betaPCRsquared_adjusted > 0) {
+              sqrtlambda = sqrt(1 / weightedmean_betaPCRsquared_adjusted)
+            } else {
+              sqrtlambda = svdd[1]
             }
-            sqrtlambda = sqrt(dataPCR$lambda[which.min(dataPCR$diff)])
+
+            # # optimal lambda according to [Cule and Iorio 2013]
+            # # Simplified such that sigma2 is reused.
+            # betaPCR = t(svdv) %*% start_beta  # alpha in [Cule and Iorio 2013]
+            # dataPCR = data.frame()
+            # for (r in 1:length(betaPCR)) {
+            #   mean_betaPCRsquared_adjusted =
+            #     mean((betaPCR^2 - sigma2 / svdd^2)[1:r]) # unbiased
+            #   if (mean_betaPCRsquared_adjusted > 0) {
+            #     lambda = sigma2 / mean_betaPCRsquared_adjusted
+            #   } else {
+            #     lambda = svdd[1]^2
+            #   }
+            #   dof = sum(1 / (1 + lambda / svdd^2)^2)
+            #   dofres = sum(1 - 1 / (1 + svdd^2 / lambda)^2)
+            #   twolnlik = sum(
+            #     svdd^2 * betaPCR^2 / sigma2 *
+            #       (1 - 1 / (1 + svdd^2 / lambda)^2))
+            #   MSE =
+            #     sum(1 / (1 + svdd^2 / lambda)^2 * betaPCR^2) +
+            #     sum(1 / (1 + lambda / svdd^2)^2 * sigma2 / svdd^2)
+            #   dataPCR = rbind(dataPCR,
+            #                   data.frame(r = r,
+            #                              lambda = lambda,
+            #                              dof = dof,
+            #                              diff = r - dof,
+            #                              dofres = dofres,
+            #                              AIC = 2 * dof - twolnlik,
+            #                              MSE = MSE))
+            # }
+            # sqrtlambda = sqrt(dataPCR$lambda[which.min(dataPCR$diff)])
 
             # in case of nls convergence failure, try from similar values
             sqrtlambdalist = c(
