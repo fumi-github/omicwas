@@ -1065,9 +1065,9 @@ ctRUV = function (X, W, Y, C = NULL,
             start_alpha = nls_result$start_alpha
             start_beta  = nls_result$start_beta
             start_gamma = nls_result$start_gamma
-            mod         = nls_result$mod
-            P           = nls_result$P
-            dof = sum(diag(P))
+            # mod         = nls_result$mod
+            # P           = nls_result$P
+            # dof = sum(diag(P))
             # RSS = sum((residuals(mod)[1:length(y)])^2)
             # GCV = length(y) * RSS / (length(y) - dof)^2
             # AIC = 2 * dof +
@@ -1103,7 +1103,7 @@ ctRUV = function (X, W, Y, C = NULL,
                                       sigma2Hstar %*%
                                       sigma2Hstarlambdainv))
             res$statistic = res$estimate / SE
-            res$p.value = pt(- abs(res$statistic), df = length(y) - dof) * 2 # this dof appropriate?
+            res$p.value = pt(- abs(res$statistic), df = dof_sigma2) * 2
             res$celltypeterm = c(colnames(oneXotimesW), colnames(C))
             return(res)
           },
