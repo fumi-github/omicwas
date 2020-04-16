@@ -814,18 +814,13 @@ ctRUV = function (X, W, Y, C = NULL,
                 svd(attr(
                   mu(X, W, oneXotimesW, start_alpha, start_beta, 0),
                   "gradient")[, seq(1, ncol(W) * ncol(X)) + ncol(W)])
-              svdd = x$d
-              svdu = x$u
-              svdv = x$v
             } else {
               x =
                 svd(attr(
                   mu(X, W, C, oneXotimesW, start_alpha, start_beta, start_gamma, 0),
                   "gradient")[, seq(1, ncol(W) * ncol(X)) + ncol(W)])
-              svdd = x$d
-              svdu = x$u
-              svdv = x$v
             }
+            svdd = x$d
             sqrtlambdalist = c(
               0,
               exp(seq(log(min(svdd)) - 1,
@@ -973,7 +968,23 @@ ctRUV = function (X, W, Y, C = NULL,
             mod         = nls_result$mod
             P           = nls_result$P
             RSS = sum((residuals(mod)[1:length(y)])^2)
-            sigma2 = RSS / sum(diag((diag(1, nrow(P)) - P) %*% (diag(1, nrow(P)) - P)))
+            dof_sigma2 = sum(diag((diag(1, nrow(P)) - P) %*% (diag(1, nrow(P)) - P)))
+            sigma2 = RSS / dof_sigma2
+
+            if (is.null(C)) {
+              x =
+                svd(attr(
+                  mu(X, W, oneXotimesW, start_alpha, start_beta, 0),
+                  "gradient")[, seq(1, ncol(W) * ncol(X)) + ncol(W)])
+            } else {
+              x =
+                svd(attr(
+                  mu(X, W, C, oneXotimesW, start_alpha, start_beta, start_gamma, 0),
+                  "gradient")[, seq(1, ncol(W) * ncol(X)) + ncol(W)])
+            }
+            svdd = x$d
+            svdu = x$u
+            svdv = x$v
 
             # # optimal lambda according to [Hoerl 1975]
             # yattributabletobeta =
