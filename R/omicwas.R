@@ -1044,11 +1044,8 @@ ctRUV = function (X, W, Y, C = NULL,
               sqrtlambda,
               sqrtlambdalist[order(abs(sqrtlambdalist - sqrtlambda))])
 
-            # only inherit start_alpha from above
+            # avoid inheriting false conversion of start_beta
             start_beta = start_beta * 0
-            if (! is.null(start_gamma)) {
-              start_gamma = start_gamma * 0
-            }
 
             # GCVdata = data.frame()
             for (sqrtlambda in sqrtlambdalist) {
