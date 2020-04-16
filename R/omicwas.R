@@ -1044,7 +1044,12 @@ ctRUV = function (X, W, Y, C = NULL,
               sqrtlambda,
               sqrtlambdalist[order(abs(sqrtlambdalist - sqrtlambda))])
 
-            start_beta = start_beta * 0 # only inherit start_alpha from above
+            # only inherit start_alpha from above
+            start_beta = start_beta * 0
+            if (! is.null(start_gamma)) {
+              start_gamma = start_gamma * 0
+            }
+
             # GCVdata = data.frame()
             for (sqrtlambda in sqrtlambdalist) {
               nls_result = my_nls(y, X, W, oneXotimesW, C,
