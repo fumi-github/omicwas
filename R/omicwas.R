@@ -61,6 +61,7 @@
 #' X, W, Y, C should be numeric.
 #' @param test Statistical test to apply; either \code{"reducedrankridge"},
 #' \code{"ridge"}, \code{"full"} or \code{"marginal"}.
+#' @param regularlize Whether to apply Tikhonov (ie ridge) regularization.
 #' @param num.cores Number of CPU cores to use.
 #' Full and marginal tests are run in serial, thus num.cores is ignored.
 #' @param chunk.size The size of job for a CPU core in one batch.
@@ -98,6 +99,7 @@
 #' @export
 ctassoc = function (X, W, Y, C = NULL,
                     test = "ridge",
+                    regularlize = TRUE,
                     # alpha = 0,
                     # lower.limit = NULL,
                     # upper.limit = NULL,
@@ -133,12 +135,14 @@ ctassoc = function (X, W, Y, C = NULL,
     .full_assoc(X, W, Y, C,
                 test = "nls",
                 nls.link = "identity",
+                regularlize = regularlize,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   }, "nls.log" = {
     .full_assoc(X, W, Y, C,
                 test = "nls",
                 nls.link = "log",
+                regularlize = regularlize,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   }, "nls.logit" = {
@@ -334,6 +338,7 @@ ctRUV = function (X, W, Y, C = NULL,
 .full_assoc = function (X, W, Y, C,
                         test,
                         nls.link,
+                        regularlize = TRUE,
                         alpha,
                         lower.limit,
                         upper.limit,
@@ -971,113 +976,117 @@ ctRUV = function (X, W, Y, C = NULL,
             dof_sigma2 = sum(diag((diag(1, nrow(P)) - P) %*% (diag(1, nrow(P)) - P)))
             sigma2 = RSS / dof_sigma2
 
-            if (is.null(C)) {
-              x =
-                svd(attr(
-                  mu(X, W, oneXotimesW, start_alpha, start_beta, 0),
-                  "gradient")[, seq(1, ncol(W) * ncol(X)) + ncol(W)])
-            } else {
-              x =
-                svd(attr(
-                  mu(X, W, C, oneXotimesW, start_alpha, start_beta, start_gamma, 0),
-                  "gradient")[, seq(1, ncol(W) * ncol(X)) + ncol(W)])
-            }
-            svdd = x$d
-            svdu = x$u
-            svdv = x$v
+            if (regularlize) {
 
-            # # optimal lambda according to [Hoerl 1975]
-            # yattributabletobeta =
-            #   mu(X, W, C, oneXotimesW, start_alpha, start_beta, start_gamma, sqrtlambda) -
-            #   mu(X, W, C, oneXotimesW, start_alpha, start_beta * 0, start_gamma, sqrtlambda)
-            # yattributabletobeta = yattributabletobeta[1:length(y)]
-            # (t(svdu[1:length(y), ]) %*% yattributabletobeta) / svdd == betaPCR below
-            # mean_betasquared_adjusted =
-            #   mean(start_beta^2) - mean(sigma2 / svdd^2) # unbiased
-            # if (mean_betasquared_adjusted > 0) {
-            #   sqrtlambda = sqrt(sigma2 / mean_betasquared_adjusted)
-            # } else {
-            #   sqrtlambda = svdd[1]
-            # }
-            betaPCR = t(svdv) %*% start_beta  # alpha in [Cule and Iorio 2013]
-            weightedmean_betaPCRsquared_adjusted =
-              sum((svdd * betaPCR)^2 / sigma2 - 1) / sum(svdd^2)
-            if (weightedmean_betaPCRsquared_adjusted > 0) {
-              sqrtlambda = sqrt(1 / weightedmean_betaPCRsquared_adjusted)
-            } else {
-              sqrtlambda = svdd[1]
-            }
-
-            # # optimal lambda according to [Cule and Iorio 2013]
-            # # Simplified such that sigma2 is reused.
-            # betaPCR = t(svdv) %*% start_beta  # alpha in [Cule and Iorio 2013]
-            # dataPCR = data.frame()
-            # for (r in 1:length(betaPCR)) {
-            #   mean_betaPCRsquared_adjusted =
-            #     mean((betaPCR^2 - sigma2 / svdd^2)[1:r]) # unbiased
-            #   if (mean_betaPCRsquared_adjusted > 0) {
-            #     lambda = sigma2 / mean_betaPCRsquared_adjusted
-            #   } else {
-            #     lambda = svdd[1]^2
-            #   }
-            #   dof = sum(1 / (1 + lambda / svdd^2)^2)
-            #   dofres = sum(1 - 1 / (1 + svdd^2 / lambda)^2)
-            #   twolnlik = sum(
-            #     svdd^2 * betaPCR^2 / sigma2 *
-            #       (1 - 1 / (1 + svdd^2 / lambda)^2))
-            #   MSE =
-            #     sum(1 / (1 + svdd^2 / lambda)^2 * betaPCR^2) +
-            #     sum(1 / (1 + lambda / svdd^2)^2 * sigma2 / svdd^2)
-            #   dataPCR = rbind(dataPCR,
-            #                   data.frame(r = r,
-            #                              lambda = lambda,
-            #                              dof = dof,
-            #                              diff = r - dof,
-            #                              dofres = dofres,
-            #                              AIC = 2 * dof - twolnlik,
-            #                              MSE = MSE))
-            # }
-            # sqrtlambda = sqrt(dataPCR$lambda[which.min(dataPCR$diff)])
-
-            # in case of nls convergence failure, try from similar values
-            sqrtlambdalist = c(
-              sqrtlambda,
-              sqrtlambdalist[order(abs(sqrtlambdalist - sqrtlambda))])
-
-            # avoid inheriting false conversion of start_beta
-            start_beta = start_beta * 0
-
-            # GCVdata = data.frame()
-            for (sqrtlambda in sqrtlambdalist) {
-              nls_result = my_nls(y, X, W, oneXotimesW, C,
-                                  start_alpha, start_beta, start_gamma,
-                                  lower_alpha, lower_beta, lower_gamma,
-                                  upper_alpha, upper_beta, upper_gamma,
-                                  sqrtlambda)
-              if (! is.character(nls_result)) { # not "error"
-                break()
+              if (is.null(C)) {
+                x =
+                  svd(attr(
+                    mu(X, W, oneXotimesW, start_alpha, start_beta, 0),
+                    "gradient")[, seq(1, ncol(W) * ncol(X)) + ncol(W)])
+              } else {
+                x =
+                  svd(attr(
+                    mu(X, W, C, oneXotimesW, start_alpha, start_beta, start_gamma, 0),
+                    "gradient")[, seq(1, ncol(W) * ncol(X)) + ncol(W)])
               }
-            }
+              svdd = x$d
+              svdu = x$u
+              svdv = x$v
 
-            start_alpha = nls_result$start_alpha
-            start_beta  = nls_result$start_beta
-            start_gamma = nls_result$start_gamma
-            # mod         = nls_result$mod
-            # P           = nls_result$P
-            # dof = sum(diag(P))
-            # RSS = sum((residuals(mod)[1:length(y)])^2)
-            # GCV = length(y) * RSS / (length(y) - dof)^2
-            # AIC = 2 * dof +
-            #   RSS / sigma2 +
-            #   length(y) * log(2 * pi * sigma2)
-            # BIC = log(length(y)) * dof +
-            #   RSS / sigma2 +
-            #   length(y) * log(2 * pi * sigma2)
-            # GCVdata = rbind(GCVdata,
-            #                 data.frame(
-            #                   sqrtlambda = sqrtlambda,
-            #                   dof = dof,
-            #                   GCV = GCV))
+              # # optimal lambda according to [Hoerl 1975]
+              # yattributabletobeta =
+              #   mu(X, W, C, oneXotimesW, start_alpha, start_beta, start_gamma, sqrtlambda) -
+              #   mu(X, W, C, oneXotimesW, start_alpha, start_beta * 0, start_gamma, sqrtlambda)
+              # yattributabletobeta = yattributabletobeta[1:length(y)]
+              # (t(svdu[1:length(y), ]) %*% yattributabletobeta) / svdd == betaPCR below
+              # mean_betasquared_adjusted =
+              #   mean(start_beta^2) - mean(sigma2 / svdd^2) # unbiased
+              # if (mean_betasquared_adjusted > 0) {
+              #   sqrtlambda = sqrt(sigma2 / mean_betasquared_adjusted)
+              # } else {
+              #   sqrtlambda = svdd[1]
+              # }
+              betaPCR = t(svdv) %*% start_beta  # alpha in [Cule and Iorio 2013]
+              weightedmean_betaPCRsquared_adjusted =
+                sum((svdd * betaPCR)^2 / sigma2 - 1) / sum(svdd^2)
+              if (weightedmean_betaPCRsquared_adjusted > 0) {
+                sqrtlambda = sqrt(1 / weightedmean_betaPCRsquared_adjusted)
+              } else {
+                sqrtlambda = svdd[1]
+              }
+
+              # # optimal lambda according to [Cule and Iorio 2013]
+              # # Simplified such that sigma2 is reused.
+              # betaPCR = t(svdv) %*% start_beta  # alpha in [Cule and Iorio 2013]
+              # dataPCR = data.frame()
+              # for (r in 1:length(betaPCR)) {
+              #   mean_betaPCRsquared_adjusted =
+              #     mean((betaPCR^2 - sigma2 / svdd^2)[1:r]) # unbiased
+              #   if (mean_betaPCRsquared_adjusted > 0) {
+              #     lambda = sigma2 / mean_betaPCRsquared_adjusted
+              #   } else {
+              #     lambda = svdd[1]^2
+              #   }
+              #   dof = sum(1 / (1 + lambda / svdd^2)^2)
+              #   dofres = sum(1 - 1 / (1 + svdd^2 / lambda)^2)
+              #   twolnlik = sum(
+              #     svdd^2 * betaPCR^2 / sigma2 *
+              #       (1 - 1 / (1 + svdd^2 / lambda)^2))
+              #   MSE =
+              #     sum(1 / (1 + svdd^2 / lambda)^2 * betaPCR^2) +
+              #     sum(1 / (1 + lambda / svdd^2)^2 * sigma2 / svdd^2)
+              #   dataPCR = rbind(dataPCR,
+              #                   data.frame(r = r,
+              #                              lambda = lambda,
+              #                              dof = dof,
+              #                              diff = r - dof,
+              #                              dofres = dofres,
+              #                              AIC = 2 * dof - twolnlik,
+              #                              MSE = MSE))
+              # }
+              # sqrtlambda = sqrt(dataPCR$lambda[which.min(dataPCR$diff)])
+
+              # in case of nls convergence failure, try from similar values
+              sqrtlambdalist = c(
+                sqrtlambda,
+                sqrtlambdalist[order(abs(sqrtlambdalist - sqrtlambda))])
+
+              # avoid inheriting false conversion of start_beta
+              start_beta = start_beta * 0
+
+              # GCVdata = data.frame()
+              for (sqrtlambda in sqrtlambdalist) {
+                nls_result = my_nls(y, X, W, oneXotimesW, C,
+                                    start_alpha, start_beta, start_gamma,
+                                    lower_alpha, lower_beta, lower_gamma,
+                                    upper_alpha, upper_beta, upper_gamma,
+                                    sqrtlambda)
+                if (! is.character(nls_result)) { # not "error"
+                  break()
+                }
+              }
+
+              start_alpha = nls_result$start_alpha
+              start_beta  = nls_result$start_beta
+              start_gamma = nls_result$start_gamma
+              # mod         = nls_result$mod
+              # P           = nls_result$P
+              # dof = sum(diag(P))
+              # RSS = sum((residuals(mod)[1:length(y)])^2)
+              # GCV = length(y) * RSS / (length(y) - dof)^2
+              # AIC = 2 * dof +
+              #   RSS / sigma2 +
+              #   length(y) * log(2 * pi * sigma2)
+              # BIC = log(length(y)) * dof +
+              #   RSS / sigma2 +
+              #   length(y) * log(2 * pi * sigma2)
+              # GCVdata = rbind(GCVdata,
+              #                 data.frame(
+              #                   sqrtlambda = sqrtlambda,
+              #                   dof = dof,
+              #                   GCV = GCV))
+
+            } # regularlize
 
             res = data.frame(estimate = c(start_alpha, start_beta, start_gamma))
             # Wald test

@@ -10,6 +10,7 @@ ctassoc(
   Y,
   C = NULL,
   test = "ridge",
+  regularlize = TRUE,
   num.cores = 1,
   chunk.size = 1000,
   seed = 123
@@ -27,6 +28,8 @@ X, W, Y, C should be numeric.}
 
 \item{test}{Statistical test to apply; either \code{"reducedrankridge"},
 \code{"ridge"}, \code{"full"} or \code{"marginal"}.}
+
+\item{regularlize}{Whether to apply Tikhonov (ie ridge) regularization.}
 
 \item{num.cores}{Number of CPU cores to use.
 Full and marginal tests are run in serial, thus num.cores is ignored.}
