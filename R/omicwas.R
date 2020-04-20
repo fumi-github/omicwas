@@ -149,6 +149,7 @@ ctassoc = function (X, W, Y, C = NULL,
     .full_assoc(X, W, Y, C,
                 test = "nls",
                 nls.link = "logit",
+                regularlize = regularlize,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   # }, "glmnet" = {
