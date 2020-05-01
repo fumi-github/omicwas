@@ -1002,26 +1002,24 @@ ctRUV = function (X, W, Y, C = NULL,
                                upper_alpha, upper_beta, upper_gamma,
                                sqrtlambda) {
               if (is.null(C)) {
-                mod = nls(y ~ mu(X, W, oneXotimesW, alpha, beta, sqrtlambda),
+                mod_alpha = nls(y ~ mu(X, W, oneXotimesW,
+                                       alpha, start_beta, sqrtlambda,
+                                       gradientalpha = TRUE),
                           data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
                                       X = as.matrix(X),
                                       W = W,
                                       oneXotimesW = oneXotimesW),
-                          start = list(alpha = start_alpha,
-                                       beta  = start_beta),
-                          lower = c(lower_alpha,
-                                    lower_beta),
-                          upper = c(upper_alpha,
-                                    upper_beta),
+                          start = list(alpha = start_alpha),
+                          lower = lower_alpha,
+                          upper = upper_alpha,
                           algorithm = "port",
                           control = nls.control(warnOnly = TRUE))
-                if (mod$convInfo$isConv) {
-                  start_alpha = coef(mod)[seq(1, ncol(W))]
-                  start_beta  = matrix(coef(mod)[seq(1, ncol(W) * ncol(X)) + ncol(W)],
-                                       nrow = ncol(W), ncol = ncol(X))
+                if (! mod_alpha$convInfo$isConv) {
+                  return("error")
                 } else {
-                  start_alpha = coef(mod)[seq(1, ncol(W))]
-                  mod = nls(y ~ mu(X, W, oneXotimesW, start_alpha, beta, sqrtlambda,
+                  start_alpha = coef(mod_alpha)
+                  mod = nls(y ~ mu(X, W, oneXotimesW,
+                                   start_alpha, beta, sqrtlambda,
                                    gradientwithoutalpha = TRUE),
                             data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
                                         X = as.matrix(X),
@@ -1038,31 +1036,25 @@ ctRUV = function (X, W, Y, C = NULL,
                   }
                 }
               } else {
-                mod = nls(y ~ mu(X, W, C, oneXotimesW, alpha, beta, gamma, sqrtlambda),
+                mod_alpha = nls(y ~ mu(X, W, C, oneXotimesW,
+                                       alpha, start_beta, start_gamma, sqrtlambda,
+                                       gradientalpha = TRUE),
                           data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
                                       X = as.matrix(X),
                                       W = W,
                                       C = as.matrix(C),
                                       oneXotimesW = oneXotimesW),
-                          start = list(alpha = start_alpha,
-                                       beta  = start_beta,
-                                       gamma = start_gamma),
-                          lower = c(lower_alpha,
-                                    lower_beta,
-                                    lower_gamma),
-                          upper = c(upper_alpha,
-                                    upper_beta,
-                                    upper_gamma),
+                          start = list(alpha = start_alpha),
+                          lower = lower_alpha,
+                          upper = upper_alpha,
                           algorithm = "port",
                           control = nls.control(warnOnly = TRUE))
-                if (mod$convInfo$isConv) {
-                  start_alpha = coef(mod)[seq(1, ncol(W))]
-                  start_beta  = matrix(coef(mod)[seq(1, ncol(W) * ncol(X)) + ncol(W)],
-                                       nrow = ncol(W), ncol = ncol(X))
-                  start_gamma = coef(mod)[seq(1, ncol(C)) + ncol(W) * (ncol(X) + 1)]
+                if (! mod_alpha$convInfo$isConv) {
+                  return("error")
                 } else {
-                  start_alpha = coef(mod)[seq(1, ncol(W))]
-                  mod = nls(y ~ mu(X, W, C, oneXotimesW, start_alpha, beta, gamma, sqrtlambda,
+                  start_alpha = coef(mod_alpha)
+                  mod = nls(y ~ mu(X, W, C, oneXotimesW,
+                                   start_alpha, beta, gamma, sqrtlambda,
                                    gradientwithoutalpha = TRUE),
                             data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
                                         X = as.matrix(X),
@@ -1106,6 +1098,7 @@ ctRUV = function (X, W, Y, C = NULL,
               return(list(start_alpha = start_alpha,
                           start_beta  = start_beta,
                           start_gamma = start_gamma,
+                          mod_alpha   = mod_alpha,
                           mod         = mod,
                           P           = P))
             }
@@ -1134,6 +1127,7 @@ ctRUV = function (X, W, Y, C = NULL,
             start_alpha = nls_result$start_alpha
             start_beta  = nls_result$start_beta
             start_gamma = nls_result$start_gamma
+            mod_alpha   = nls_result$mod_alpha
             mod         = nls_result$mod
             P           = nls_result$P
             RSS = sum((residuals(mod)[1:length(y)])^2)
