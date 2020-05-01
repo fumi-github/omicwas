@@ -1253,19 +1253,44 @@ ctRUV = function (X, W, Y, C = NULL,
                           start_alpha, start_beta,
                           sqrtlambda),
                        "gradient")
+              xx = attr(mu(X, W, oneXotimesW,
+                           start_alpha, start_beta,
+                           sqrtlambda),
+                        "hessian")()
+              r = y - mu(X, W, oneXotimesW,
+                         start_alpha, start_beta,
+                         sqrtlambda)[1:length(y)]
             } else {
               x = attr(mu(X, W, C, oneXotimesW,
                           start_alpha, start_beta, start_gamma,
                           sqrtlambda),
                        "gradient")
+              xx = attr(mu(X, W, C, oneXotimesW,
+                           start_alpha, start_beta, start_gamma,
+                           sqrtlambda),
+                        "hessian")()
+              r = y - mu(X, W, C, oneXotimesW,
+                         start_alpha, start_beta, start_gamma,
+                         sqrtlambda)[1:length(y)]
             }
             sigma2Hstar =
               t(x[1:length(y), ]) %*%
               x[1:length(y), ]
-            sigma2Hstarlambdainv = solve(t(x) %*% x)
-            SE = sqrt(sigma2 * diag(sigma2Hstarlambdainv %*%
+            # sigma2Hstarlambdainv = solve(t(x) %*% x)
+            # SE = sqrt(sigma2 * diag(sigma2Hstarlambdainv %*%
+            #                           sigma2Hstar %*%
+            #                           sigma2Hstarlambdainv))
+            z = matrix(
+              rowSums(
+                mapply(
+                  function (x, r) { x * r },
+                  xx,
+                  as.list(r))),
+              nrow = nrow(xx[[1]]))
+            sigma2Hlambdainv = solve(t(x) %*% x - z)
+            SE = sqrt(sigma2 * diag(sigma2Hlambdainv %*%
                                       sigma2Hstar %*%
-                                      sigma2Hstarlambdainv))
+                                      sigma2Hlambdainv))
             res$statistic = res$estimate / SE
             res$p.value = pt(- abs(res$statistic), df = dof_sigma2) * 2
             res$celltypeterm = c(colnames(oneXotimesW), colnames(C))
