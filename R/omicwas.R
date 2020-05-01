@@ -1246,7 +1246,7 @@ ctRUV = function (X, W, Y, C = NULL,
 
             } # regularlize
 
-            res = data.frame(estimate = c(start_alpha, start_beta, start_gamma))
+            res = data.frame(estimate = c(start_beta, start_gamma))
             # Wald test
             if (is.null(C)) {
               x = attr(mu(X, W, oneXotimesW,
@@ -1273,6 +1273,11 @@ ctRUV = function (X, W, Y, C = NULL,
                          start_alpha, start_beta, start_gamma,
                          sqrtlambda)[1:length(y)]
             }
+            x = x[, -(1:length(start_alpha))]
+            xx = lapply(xx,
+                        function (x) {
+                          x[-(1:length(start_alpha)),
+                            -(1:length(start_alpha))] })
             sigma2Hstar =
               t(x[1:length(y), ]) %*%
               x[1:length(y), ]
@@ -1293,6 +1298,9 @@ ctRUV = function (X, W, Y, C = NULL,
                                       sigma2Hlambdainv))
             res$statistic = res$estimate / SE
             res$p.value = pt(- abs(res$statistic), df = dof_sigma2) * 2
+            res_alpha = summary(mod_alpha)$coefficients[, -2]
+            colnames(res_alpha) = c("estimate", "statistic", "p.value")
+            res = rbind(res_alpha, res)
             res$celltypeterm = c(colnames(oneXotimesW), colnames(C))
             return(res)
           },
