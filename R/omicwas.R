@@ -1130,8 +1130,8 @@ ctRUV = function (X, W, Y, C = NULL,
             mod_alpha   = nls_result$mod_alpha
             mod         = nls_result$mod
             P           = nls_result$P
-            RSS = sum((residuals(mod)[1:length(y)])^2)
-            dof_sigma2 = sum(diag((diag(1, nrow(P)) - P) %*% (diag(1, nrow(P)) - P)))
+            RSS = sum((residuals(mod_alpha)[1:length(y)])^2)
+            dof_sigma2 = length(y) - length(start_alpha)
             sigma2 = RSS / dof_sigma2
 
             if (regularlize) {
