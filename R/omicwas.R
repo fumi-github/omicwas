@@ -871,7 +871,7 @@ ctRUV = function (X, W, Y, C = NULL,
                              nrow = ncol(W),
                              ncol = ncol(W))}) *
                   apply(
-                    Wlog,
+                    Wlogit,
                     1,
                     function (x) { x %*% t(x) })))
           }
@@ -935,7 +935,7 @@ ctRUV = function (X, W, Y, C = NULL,
                              nrow = ncol(W),
                              ncol = ncol(W))}) *
                   apply(
-                    Wlog,
+                    Wlogit,
                     1,
                     function (x) { x %*% t(x) })))
           }
