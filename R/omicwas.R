@@ -681,6 +681,11 @@ ctRUV = function (X, W, Y, C = NULL,
             rbind(oneXotimesW,
                   cbind(matrix(0, nrow = length(beta), ncol = length(alpha)),
                         diag(rep(sqrtlambda, length(beta)))))
+          attr(res, "hessian") = function () {
+            rep(
+              list(diag(rep(0, ncol(oneXotimesW)))),
+              nrow(X))
+          }
           if (gradientalpha) {
             attr(res, "gradient") = attr(res, "gradient")[, 1:length(alpha)]
           }
@@ -703,6 +708,11 @@ ctRUV = function (X, W, Y, C = NULL,
                   cbind(matrix(0, nrow = length(beta), ncol = length(alpha)),
                         diag(rep(sqrtlambda, length(beta))),
                         matrix(0, nrow = length(beta), ncol = length(gamma))))
+          attr(res, "hessian") = function () {
+            rep(
+              list(diag(rep(0, ncol(oneXotimesW) + ncol(C)))),
+              nrow(X))
+          }
           if (gradientalpha) {
             attr(res, "gradient") = attr(res, "gradient")[, 1:length(alpha)]
           }
@@ -735,6 +745,23 @@ ctRUV = function (X, W, Y, C = NULL,
               cbind(
                 matrix(0, nrow = length(beta), ncol = length(alpha)),
                 diag(rep(sqrtlambda, length(beta)))))
+          attr(res, "hessian") = function () {
+            mapply(
+              function (x, w) {
+                list(
+                  matrix(x, nrow = ncol(X) + 1) %x%
+                    matrix(w, nrow = ncol(Wlog))) },
+              as.data.frame(
+                apply(
+                  cbind(1, X),
+                  1,
+                  function (x) { x %*% t(x) })),
+              as.data.frame(
+                apply(
+                  Wlog,
+                  1,
+                  function (x) { diag(x) - x %*% t(x) })))
+          }
           if (gradientalpha) {
             attr(res, "gradient") = attr(res, "gradient")[, 1:length(alpha)]
           }
@@ -768,6 +795,28 @@ ctRUV = function (X, W, Y, C = NULL,
                 matrix(0, nrow = length(beta), ncol = length(alpha)),
                 diag(rep(sqrtlambda, length(beta))),
                 matrix(0, nrow = length(beta), ncol = length(gamma))))
+          attr(res, "hessian") = function () {
+            mapply(
+              function (x, w) {
+                m =
+                  matrix(x, nrow = ncol(X) + 1) %x%
+                    matrix(w, nrow = ncol(Wlog))
+                m = rbind(m,
+                          matrix(0, nrow = length(gamma), ncol = ncol(m)))
+                m = cbind(m,
+                          matrix(0, nrow = nrow(m), ncol = length(gamma)))
+                list(m) },
+              as.data.frame(
+                apply(
+                  cbind(1, X),
+                  1,
+                  function (x) { x %*% t(x) })),
+              as.data.frame(
+                apply(
+                  Wlog,
+                  1,
+                  function (x) { diag(x) - x %*% t(x) })))
+          }
           if (gradientalpha) {
             attr(res, "gradient") = attr(res, "gradient")[, 1:length(alpha)]
           }
@@ -799,6 +848,33 @@ ctRUV = function (X, W, Y, C = NULL,
               cbind(
                 matrix(0, nrow = length(beta), ncol = length(alpha)),
                 diag(rep(sqrtlambda, length(beta)))))
+          attr(res, "hessian") = function () {
+            mapply(
+              function (x, w) {
+                list(
+                  matrix(x, nrow = ncol(X) + 1) %x%
+                    matrix(w, nrow = ncol(Wlogit))) },
+              as.data.frame(
+                apply(
+                  cbind(1, X),
+                  1,
+                  function (x) { x %*% t(x) })),
+              as.data.frame(
+                apply(
+                  (1 - 2 * g_i_h) * Wlogit,
+                  1,
+                  diag) -
+                  sapply(
+                    1 - 2 * rowSums(W * g_i_h),
+                    function (x) {
+                      matrix(x,
+                             nrow = ncol(W),
+                             ncol = ncol(W))}) *
+                  apply(
+                    Wlog,
+                    1,
+                    function (x) { x %*% t(x) })))
+          }
           if (gradientalpha) {
             attr(res, "gradient") = attr(res, "gradient")[, 1:length(alpha)]
           }
@@ -831,6 +907,38 @@ ctRUV = function (X, W, Y, C = NULL,
                 matrix(0, nrow = length(beta), ncol = length(alpha)),
                 diag(rep(sqrtlambda, length(beta))),
                 matrix(0, nrow = length(beta), ncol = length(gamma))))
+          attr(res, "hessian") = function () {
+            mapply(
+              function (x, w) {
+                m =
+                  matrix(x, nrow = ncol(X) + 1) %x%
+                  matrix(w, nrow = ncol(Wlogit))
+                m = rbind(m,
+                          matrix(0, nrow = length(gamma), ncol = ncol(m)))
+                m = cbind(m,
+                          matrix(0, nrow = nrow(m), ncol = length(gamma)))
+                list(m) },
+              as.data.frame(
+                apply(
+                  cbind(1, X),
+                  1,
+                  function (x) { x %*% t(x) })),
+              as.data.frame(
+                apply(
+                  (1 - 2 * g_i_h) * Wlogit,
+                  1,
+                  diag) -
+                  sapply(
+                    1 - 2 * rowSums(W * g_i_h),
+                    function (x) {
+                      matrix(x,
+                             nrow = ncol(W),
+                             ncol = ncol(W))}) *
+                  apply(
+                    Wlog,
+                    1,
+                    function (x) { x %*% t(x) })))
+          }
           if (gradientalpha) {
             attr(res, "gradient") = attr(res, "gradient")[, 1:length(alpha)]
           }
