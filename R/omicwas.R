@@ -996,82 +996,87 @@ ctRUV = function (X, W, Y, C = NULL,
                       log(max(svdd)) + 1,
                       length.out = 20)))
 
-            my_nls = function (y, X, W, oneXotimesW, C,
-                               start_alpha, start_beta, start_gamma,
-                               lower_alpha, lower_beta, lower_gamma,
-                               upper_alpha, upper_beta, upper_gamma,
-                               sqrtlambda) {
+            my_nlsalpha = function (y, X, W, oneXotimesW, C,
+                                    start_alpha, start_beta, start_gamma,
+                                    lower_alpha, lower_beta, lower_gamma,
+                                    upper_alpha, upper_beta, upper_gamma,
+                                    sqrtlambda) {
               if (is.null(C)) {
                 mod_alpha = nls(y ~ mu(X, W, oneXotimesW,
                                        alpha, start_beta, sqrtlambda,
                                        gradientalpha = TRUE),
-                          data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
-                                      X = as.matrix(X),
-                                      W = W,
-                                      oneXotimesW = oneXotimesW),
-                          start = list(alpha = start_alpha),
-                          lower = lower_alpha,
-                          upper = upper_alpha,
-                          algorithm = "port",
-                          control = nls.control(warnOnly = TRUE))
-                if (! mod_alpha$convInfo$isConv) {
-                  return("error")
-                } else {
-                  start_alpha = coef(mod_alpha)
-                  mod = nls(y ~ mu(X, W, oneXotimesW,
-                                   start_alpha, beta, sqrtlambda,
-                                   gradientwithoutalpha = TRUE),
-                            data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
-                                        X = as.matrix(X),
-                                        W = W,
-                                        oneXotimesW = oneXotimesW),
-                            start = list(beta = start_beta),
-                            algorithm = "port",
-                            control = nls.control(warnOnly = TRUE))
-                  if (mod$convInfo$isConv) {
-                    start_beta  = matrix(coef(mod)[seq(1, ncol(W) * ncol(X))],
-                                         nrow = ncol(W), ncol = ncol(X))
-                  } else {
-                    return("error")
-                  }
-                }
+                                data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
+                                            X = as.matrix(X),
+                                            W = W,
+                                            oneXotimesW = oneXotimesW),
+                                start = list(alpha = start_alpha),
+                                lower = lower_alpha,
+                                upper = upper_alpha,
+                                algorithm = "port",
+                                control = nls.control(warnOnly = TRUE))
               } else {
                 mod_alpha = nls(y ~ mu(X, W, C, oneXotimesW,
                                        alpha, start_beta, start_gamma, sqrtlambda,
                                        gradientalpha = TRUE),
+                                data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
+                                            X = as.matrix(X),
+                                            W = W,
+                                            C = as.matrix(C),
+                                            oneXotimesW = oneXotimesW),
+                                start = list(alpha = start_alpha),
+                                lower = lower_alpha,
+                                upper = upper_alpha,
+                                algorithm = "port",
+                                control = nls.control(warnOnly = TRUE))
+              }
+              if (! mod_alpha$convInfo$isConv) {
+                return("error")
+              } else {
+                return(list(start_alpha = coef(mod_alpha),
+                            mod_alpha   = mod_alpha))
+              }
+            }
+            my_nlswithoutalpha = function (y, X, W, oneXotimesW, C,
+                                           start_alpha, start_beta, start_gamma,
+                                           lower_alpha, lower_beta, lower_gamma,
+                                           upper_alpha, upper_beta, upper_gamma,
+                                           sqrtlambda) {
+              if (is.null(C)) {
+                mod = nls(y ~ mu(X, W, oneXotimesW,
+                                 start_alpha, beta, sqrtlambda,
+                                 gradientwithoutalpha = TRUE),
+                          data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
+                                      X = as.matrix(X),
+                                      W = W,
+                                      oneXotimesW = oneXotimesW),
+                          start = list(beta = start_beta),
+                          algorithm = "port",
+                          control = nls.control(warnOnly = TRUE))
+                if (mod$convInfo$isConv) {
+                  start_beta  = matrix(coef(mod)[seq(1, ncol(W) * ncol(X))],
+                                       nrow = ncol(W), ncol = ncol(X))
+                } else {
+                  return("error")
+                }
+              } else {
+                mod = nls(y ~ mu(X, W, C, oneXotimesW,
+                                 start_alpha, beta, gamma, sqrtlambda,
+                                 gradientwithoutalpha = TRUE),
                           data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
                                       X = as.matrix(X),
                                       W = W,
                                       C = as.matrix(C),
                                       oneXotimesW = oneXotimesW),
-                          start = list(alpha = start_alpha),
-                          lower = lower_alpha,
-                          upper = upper_alpha,
+                          start = list(beta  = start_beta,
+                                       gamma = start_gamma),
                           algorithm = "port",
                           control = nls.control(warnOnly = TRUE))
-                if (! mod_alpha$convInfo$isConv) {
-                  return("error")
+                if (mod$convInfo$isConv) {
+                  start_beta  = matrix(coef(mod)[seq(1, ncol(W) * ncol(X))],
+                                       nrow = ncol(W), ncol = ncol(X))
+                  start_gamma = coef(mod)[seq(1, ncol(C)) + ncol(W) * ncol(X)]
                 } else {
-                  start_alpha = coef(mod_alpha)
-                  mod = nls(y ~ mu(X, W, C, oneXotimesW,
-                                   start_alpha, beta, gamma, sqrtlambda,
-                                   gradientwithoutalpha = TRUE),
-                            data = list(y = c(y, rep(0, ncol(X) * ncol(W))),
-                                        X = as.matrix(X),
-                                        W = W,
-                                        C = as.matrix(C),
-                                        oneXotimesW = oneXotimesW),
-                            start = list(beta  = start_beta,
-                                         gamma = start_gamma),
-                            algorithm = "port",
-                            control = nls.control(warnOnly = TRUE))
-                  if (mod$convInfo$isConv) {
-                    start_beta  = matrix(coef(mod)[seq(1, ncol(W) * ncol(X))],
-                                         nrow = ncol(W), ncol = ncol(X))
-                    start_gamma = coef(mod)[seq(1, ncol(C)) + ncol(W) * ncol(X)]
-                  } else {
-                    return("error")
-                  }
+                  return("error")
                 }
               }
               # compute projection matrix
@@ -1095,21 +1100,39 @@ ctRUV = function (X, W, Y, C = NULL,
               if (class(e) == "try-error") {
                 return("error")
               }
-              return(list(start_alpha = start_alpha,
-                          start_beta  = start_beta,
+              return(list(start_beta  = start_beta,
                           start_gamma = start_gamma,
-                          mod_alpha   = mod_alpha,
                           mod         = mod,
                           P           = P))
             }
 
+            nls_result = my_nlsalpha(y, X, W, oneXotimesW, C,
+                                     start_alpha, start_beta, start_gamma,
+                                     lower_alpha, lower_beta, lower_gamma,
+                                     upper_alpha, upper_beta, upper_gamma,
+                                     sqrtlambda = 0)
+            # Discard this marker, if nls convergence fails
+            if (is.character(nls_result)) {
+              res =
+                data.frame(estimate     = NA,
+                           statistic    = NA,
+                           p.value      = NA,
+                           celltypeterm = c(colnames(oneXotimesW), colnames(C)))
+              return(res)
+            }
+            start_alpha = nls_result$start_alpha
+            mod_alpha   = nls_result$mod_alpha
+            RSS = sum((residuals(mod_alpha)[1:length(y)])^2)
+            dof_sigma2 = length(y) - length(start_alpha)
+            sigma2 = RSS / dof_sigma2
+
             # sqrtlambda = 0 or the smallest one that nls converges
             for (sqrtlambda in sqrtlambdalist) {
-              nls_result = my_nls(y, X, W, oneXotimesW, C,
-                                  start_alpha, start_beta, start_gamma,
-                                  lower_alpha, lower_beta, lower_gamma,
-                                  upper_alpha, upper_beta, upper_gamma,
-                                  sqrtlambda)
+              nls_result = my_nlswithoutalpha(y, X, W, oneXotimesW, C,
+                                              start_alpha, start_beta, start_gamma,
+                                              lower_alpha, lower_beta, lower_gamma,
+                                              upper_alpha, upper_beta, upper_gamma,
+                                              sqrtlambda)
               if (! is.character(nls_result)) { # not "error"
                 break()
               }
@@ -1123,16 +1146,10 @@ ctRUV = function (X, W, Y, C = NULL,
                            celltypeterm = c(colnames(oneXotimesW), colnames(C)))
               return(res)
             }
-
-            start_alpha = nls_result$start_alpha
             start_beta  = nls_result$start_beta
             start_gamma = nls_result$start_gamma
-            mod_alpha   = nls_result$mod_alpha
             mod         = nls_result$mod
             P           = nls_result$P
-            RSS = sum((residuals(mod_alpha)[1:length(y)])^2)
-            dof_sigma2 = length(y) - length(start_alpha)
-            sigma2 = RSS / dof_sigma2
 
             if (regularlize) {
 
@@ -1214,17 +1231,16 @@ ctRUV = function (X, W, Y, C = NULL,
 
               # GCVdata = data.frame()
               for (sqrtlambda in sqrtlambdalist) {
-                nls_result = my_nls(y, X, W, oneXotimesW, C,
-                                    start_alpha, start_beta, start_gamma,
-                                    lower_alpha, lower_beta, lower_gamma,
-                                    upper_alpha, upper_beta, upper_gamma,
-                                    sqrtlambda)
+                nls_result = my_nlswithoutalpha(y, X, W, oneXotimesW, C,
+                                                start_alpha, start_beta, start_gamma,
+                                                lower_alpha, lower_beta, lower_gamma,
+                                                upper_alpha, upper_beta, upper_gamma,
+                                                sqrtlambda)
                 if (! is.character(nls_result)) { # not "error"
                   break()
                 }
               }
 
-              start_alpha = nls_result$start_alpha
               start_beta  = nls_result$start_beta
               start_gamma = nls_result$start_gamma
               # mod         = nls_result$mod
