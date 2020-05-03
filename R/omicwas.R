@@ -1264,6 +1264,7 @@ ctRUV = function (X, W, Y, C = NULL,
 
             res = data.frame(estimate = c(start_beta, start_gamma))
             # Wald test
+            # To be accurate, non-exact t-type test [Halawa 2000]
             if (is.null(C)) {
               x = attr(mu(X, W, oneXotimesW,
                           start_alpha, start_beta,
