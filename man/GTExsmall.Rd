@@ -4,7 +4,9 @@
 \name{GTExsmall}
 \alias{GTExsmall}
 \title{Small Subset of GTEx Dataset}
-\format{An object of class \code{list} of length 4.}
+\format{
+An object of class \code{list} of length 4.
+}
 \source{
 \href{https://gtexportal.org}{GTEx}
 }
