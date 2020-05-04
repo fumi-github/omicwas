@@ -1097,7 +1097,7 @@ ctRUV = function (X, W, Y, C = NULL,
                   solve(t(x) %*% x) %*%
                   t(x[1:length(y), ])
               })
-              if (class(e) == "try-error") {
+              if (inherits(e, "try-error")) {
                 return("error")
               }
               return(list(start_beta  = start_beta,
