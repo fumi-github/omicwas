@@ -116,9 +116,9 @@ ctassoc = function (X, W, Y, C = NULL,
     C = .as.matrix(C, d = "vertical", nam = "C")
   }
   .check_input(X, W, Y, C)
-  X = .colcentralize(X)
+  X = .colcenter(X)
   if (!is.null(C)) {
-    C = .colcentralize(C)
+    C = .colcenter(C)
   }
   switch(test, "reducedrankridge" = {
     .full_assoc(X, W, Y, C,
@@ -204,9 +204,9 @@ ctRUV = function (X, W, Y, C = NULL,
     C = .as.matrix(C, d = "vertical", nam = "C")
   }
   .check_input(X, W, Y, C)
-  X = .colcentralize(X)
+  X = .colcenter(X)
   if (!is.null(C)) {
-    C = .colcentralize(C)
+    C = .colcenter(C)
   }
   X1W = as.matrix(do.call(cbind, apply(W, 2, function(W_h) {cbind(as.data.frame(X), 1) * W_h})))
   switch(method, "PCA" = {
@@ -281,7 +281,7 @@ ctRUV = function (X, W, Y, C = NULL,
   return(X)
 }
 
-.colcentralize = function (m) {
+.colcenter = function (m) {
   m -	matrix(colMeans(m, na.rm = TRUE),
              nrow = nrow(m),
              ncol = ncol(m),
@@ -395,14 +395,14 @@ ctRUV = function (X, W, Y, C = NULL,
       tYadjW = lm(y ~ x,
                   data = list(y = t(Y), x = cbind(W, C)))$residuals
     }
-    tYadjW = .colcentralize(tYadjW)
+    tYadjW = .colcenter(tYadjW)
     rm(Y)
     gc()
     tYadjW_colSds = matrixStats::colSds(tYadjW)
     tYadjWsc = t(t(tYadjW) / tYadjW_colSds)
     rm(tYadjW)
     gc()
-    XW = .colcentralize(XW)
+    XW = .colcenter(XW)
     XW_colSds = matrixStats::colSds(XW)
     XWsc = t(t(XW) / XW_colSds)
 
