@@ -965,17 +965,11 @@ ctRUV = function (X, W, Y, C = NULL,
             start_alpha = rep(median(y, na.rm = TRUE), ncol(W))
             lower_alpha = rep(min(y, na.rm = TRUE), ncol(W))
             upper_alpha = rep(max(y, na.rm = TRUE), ncol(W))
-            start_beta  = matrix(   0, nrow = ncol(W), ncol = ncol(X))
-            lower_beta  = matrix(-Inf, nrow = ncol(W), ncol = ncol(X))
-            upper_beta  = matrix( Inf, nrow = ncol(W), ncol = ncol(X))
+            start_beta  = matrix(0, nrow = ncol(W), ncol = ncol(X))
             if (is.null(C)) {
               start_gamma = NULL
-              lower_gamma = NULL
-              upper_gamma = NULL
             } else {
-              start_gamma = rep(   0, ncol(C))
-              lower_gamma = rep(-Inf, ncol(C))
-              upper_gamma = rep( Inf, ncol(C))
+              start_gamma = rep(0, ncol(C))
             }
 
             if (is.null(C)) {
@@ -998,8 +992,8 @@ ctRUV = function (X, W, Y, C = NULL,
 
             my_nlsalpha = function (y, X, W, oneXotimesW, C,
                                     start_alpha, start_beta, start_gamma,
-                                    lower_alpha, lower_beta, lower_gamma,
-                                    upper_alpha, upper_beta, upper_gamma,
+                                    lower_alpha,
+                                    upper_alpha,
                                     sqrtlambda) {
               if (is.null(C)) {
                 mod_alpha = nls(y ~ mu(X, W, oneXotimesW,
@@ -1038,8 +1032,8 @@ ctRUV = function (X, W, Y, C = NULL,
             }
             my_nlswithoutalpha = function (y, X, W, oneXotimesW, C,
                                            start_alpha, start_beta, start_gamma,
-                                           lower_alpha, lower_beta, lower_gamma,
-                                           upper_alpha, upper_beta, upper_gamma,
+                                           lower_alpha,
+                                           upper_alpha,
                                            sqrtlambda) {
               if (is.null(C)) {
                 mod = nls(y ~ mu(X, W, oneXotimesW,
@@ -1108,8 +1102,8 @@ ctRUV = function (X, W, Y, C = NULL,
 
             nls_result = my_nlsalpha(y, X, W, oneXotimesW, C,
                                      start_alpha, start_beta, start_gamma,
-                                     lower_alpha, lower_beta, lower_gamma,
-                                     upper_alpha, upper_beta, upper_gamma,
+                                     lower_alpha,
+                                     upper_alpha,
                                      sqrtlambda = 0)
             # Discard this marker, if nls convergence fails
             if (is.character(nls_result)) {
@@ -1130,8 +1124,8 @@ ctRUV = function (X, W, Y, C = NULL,
             for (sqrtlambda in sqrtlambdalist) {
               nls_result = my_nlswithoutalpha(y, X, W, oneXotimesW, C,
                                               start_alpha, start_beta, start_gamma,
-                                              lower_alpha, lower_beta, lower_gamma,
-                                              upper_alpha, upper_beta, upper_gamma,
+                                              lower_alpha,
+                                              upper_alpha,
                                               sqrtlambda)
               if (! is.character(nls_result)) { # not "error"
                 break()
@@ -1233,8 +1227,8 @@ ctRUV = function (X, W, Y, C = NULL,
               for (sqrtlambda in sqrtlambdalist) {
                 nls_result = my_nlswithoutalpha(y, X, W, oneXotimesW, C,
                                                 start_alpha, start_beta, start_gamma,
-                                                lower_alpha, lower_beta, lower_gamma,
-                                                upper_alpha, upper_beta, upper_gamma,
+                                                lower_alpha,
+                                                upper_alpha,
                                                 sqrtlambda)
                 if (! is.character(nls_result)) { # not "error"
                   break()
