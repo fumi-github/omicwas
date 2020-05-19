@@ -98,7 +98,7 @@
 #' @importFrom utils getFromNamespace setTxtProgressBar txtProgressBar
 #' @export
 ctassoc = function (X, W, Y, C = NULL,
-                    test = "ridge",
+                    test = "full",
                     regularlize = TRUE,
                     # alpha = 0,
                     # lower.limit = NULL,
