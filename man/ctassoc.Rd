@@ -9,8 +9,8 @@ ctassoc(
   W,
   Y,
   C = NULL,
-  test = "ridge",
-  regularlize = TRUE,
+  test = "full",
+  regularize = TRUE,
   num.cores = 1,
   chunk.size = 1000,
   seed = 123
@@ -19,17 +19,19 @@ ctassoc(
 \arguments{
 \item{X}{Matrix (or vector) of traits; samples x traits.}
 
-\item{W}{Matrix of proportion of cell types; samples x cell types.}
+\item{W}{Matrix of cell type composition; samples x cell types.}
 
 \item{Y}{Matrix (or vector) of bulk omics measurements; markers x samples.}
 
 \item{C}{Matrix (or vector) of covariates; samples x covariates.
 X, W, Y, C should be numeric.}
 
-\item{test}{Statistical test to apply; either \code{"reducedrankridge"},
-\code{"ridge"}, \code{"full"} or \code{"marginal"}.}
+\item{test}{Statistical test to apply; either \code{"full"} or \code{"marginal"},
+\code{"nls.identity"}, \code{"nls.log"}, \code{"nls.logit"}, \code{"reducedrankridge"}
+or \code{"ridge"}.}
 
-\item{regularlize}{Whether to apply Tikhonov (ie ridge) regularization.}
+\item{regularize}{Whether to apply Tikhonov (ie ridge) regularization.
+Effective for \code{nls.*} tests.}
 
 \item{num.cores}{Number of CPU cores to use.
 Full and marginal tests are run in serial, thus num.cores is ignored.}
@@ -52,14 +54,14 @@ Let the indexes be
 \eqn{h} for cell type, \eqn{i} for sample,
 \eqn{j} for marker (CpG site or gene),
 \eqn{k} for each trait that has cell-type-specific effect,
-and \eqn{l} for each trait that has bulk tissue effect.
+and \eqn{l} for each trait that has a uniform effect across cell types.
 The input data are \eqn{X_{i k}}, \eqn{C_{i l}}, \eqn{W_{i h}} and \eqn{Y_{j i}},
 where \eqn{C_{i l}} can be omitted.
-\eqn{X_{i k}} and \eqn{C_{i l}} are the two types of traits,
+\eqn{X_{i k}} and \eqn{C_{i l}} are the values for two types of traits,
 showing effects that are cell-type-specific or not, respectively.
 Thus, calling \eqn{X_{i k}} and \eqn{C_{i l}} as "traits" and "covariates"
 gives a rough idea, but is not strictly correct.
-\eqn{W_{i h}} represents the cell type proportion and
+\eqn{W_{i h}} represents the cell type composition and
 \eqn{Y_{j i}} represents the marker level,
 such as methylation or gene expression.
 For each tissue sample, the cell type proportion \eqn{W_{i h}}
@@ -67,38 +69,60 @@ is the proportion of each cell type in the bulk tissue,
 which is measured or imputed beforehand.
 The marker level \eqn{Y_{j i}} in bulk tissue is measured and provided as input.
 
-The cell-type-specific marker level \eqn{Z_{h j i}} is not observed
-and is treated as a hidden variable.
 The parameters we estimate are
-the effect of cell-type-specific traits \eqn{\beta_{h j k}},
-the effect of non-specific traits \eqn{\gamma_{j l}},
-and the cell-type-specific basal marker level \eqn{\mu_{h j}}.
+the cell-type-specific trait effect \eqn{\beta_{h j k}},
+the tissue-uniform trait effect \eqn{\gamma_{j l}},
+and the basal marker level \eqn{\alpha_{h j}} in each cell type.
 
-We assume normal distribution for the cell-type-specific marker level,
-\deqn{Z_{h j i} ~ N(\mu_{h j} + \sum_k \beta_{h j k} * X_{i k}, \sigma^2_{h j}).}
-Since the bulk tissue marker level is the sum weighted by \eqn{W_{i h}},
-\deqn{Y_{j i} ~ N(\sum_h W_{i h} [\mu_{h j} + \sum_k \beta_{h j k} * X_{i k}] +
-                  \sum_l \gamma_{j l} C_{i l}, \tau^2_j).}
-Although formally, the variance comprises of components of cell type level
-and tissue level, we approximate and unify into \eqn{\tau^2_j}.
+We first describe the conventional linear regression models.
+For marker \eqn{j} in sample \eqn{i},
+the maker level specific to cell type \eqn{h} is
+\deqn{\alpha_{h j} + \sum_k \beta_{h j k} * X_{i k}.}
+This is a representative value rather than a mean, because we do not model
+a probability distribution for cell-type-specific expression.
+The bulk tissue marker level is the average weighted by \eqn{W_{i h}},
+\deqn{\mu_{j i} = \sum_h W_{i h} [ \alpha_{h j} + \sum_k \beta_{h j k} * X_{i k} ] +
+                  \sum_l \gamma_{j l} C_{i l}.}
+The statistical model is
+\deqn{Y_{j i} = \mu_{j i} + \epsilon_{j i},}
+\deqn{\epsilon_{j i} ~ N(0, \sigma^2_j).}
+The error of the marker level is is noramlly distributed with variance
+\eqn{\sigma^2_j}, independently among samples.
 
 The \code{full} model is the linear regression
-\deqn{Y_{j i} ~ (\sum_h \mu_{h j} * W_{i h}) +
+\deqn{Y_{j i} = (\sum_h \alpha_{h j} * W_{i h}) +
                 (\sum_{h k} \beta_{h j k} * W_{i h} * X_{i k}) +
                 (\sum_l \gamma_{j l} * C_{i l}) +
                 error.}
-The \code{ridge} model aims to cope with multicollinearity of
-the interacting terms \eqn{W_{i h} * X_{i k}}.
-It first adjusts for \eqn{\mu_{h j}} and \eqn{\gamma_{j l}}
-by fitting linear regression and taking the residuals.
-Afterwards, ridge regression is used to fit \eqn{\beta_{h j k}}.
-We use the \link[ridge]{linearRidge} function of the ridge package.
 The \code{marginal} model tests the trait association only in one
 cell type \eqn{h}, under the linear regression,
-\deqn{Y_{j i} ~ (\sum_{h'} \mu_{h' j} * W_{i h'}) +
+\deqn{Y_{j i} = (\sum_{h'} \alpha_{h' j} * W_{i h'}) +
                 (\sum_k \beta_{h j k} * W_{i h} * X_{i k}) +
                 (\sum_l \gamma_{j l} * C_{i l}) +
                 error.}
+
+The nonlinear model simultaneously analyze cell type composition in
+linear scale and differential expression/methylation in log/logit scale.
+The normalizing function is the natural logarithm \eqn{f} = log for gene
+expression, and \eqn{f} = logit for methylation. Conventional linear regression
+can be formulated by defining \eqn{f} as the identity function. The three models
+are named \code{nls.log}, \code{nls.logit} and \code{nls.identity}.
+We denote the inverse function of \eqn{f} by \eqn{g}; \eqn{g} = exp for
+gene expression, and \eqn{g} = logistic for methylation.
+The mean normalized marker level of marker \eqn{j} in sample \eqn{i} becomes
+\deqn{\mu_{j i} = f(\sum_h W_{i h} g( \alpha_{h j} + \sum_k \beta_{h j k} * X_{i k} )) +
+                  \sum_l \gamma_{j l} C_{i l}.}
+The statistical model is
+\deqn{f(Y_{j i}) = \mu_{j i} + \epsilon_{j i},}
+\deqn{\epsilon_{j i} ~ N(0, \sigma^2_j).}
+The error of the marker level is is noramlly distributed with variance
+\eqn{\sigma^2_j}, independently among samples.
+
+The \code{ridge} regression aims to cope with multicollinearity of
+the interacting terms \eqn{W_{i h} * X_{i k}}.
+Ridge regression is fit by minimizing the residual sum of squares (RSS) plus
+\eqn{\lambda \sum_{h k} \beta_{h j k}^2}, where \eqn{\lambda > 0} is the
+regularization parameter.
 }
 \examples{
 \donttest{
@@ -107,7 +131,6 @@ X = GSE42861small$X
 Y = GSE42861small$Y
 W = GSE42861small$W
 C = GSE42861small$C
-Y = ctRUV(X, W, Y, C = C)
 result = ctassoc(X, W, Y, C = C)
 result$coefficients
 }
