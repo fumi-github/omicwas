@@ -99,7 +99,7 @@
 #' @export
 ctassoc = function (X, W, Y, C = NULL,
                     test = "full",
-                    regularlize = TRUE,
+                    regularize = TRUE,
                     # alpha = 0,
                     # lower.limit = NULL,
                     # upper.limit = NULL,
@@ -135,21 +135,21 @@ ctassoc = function (X, W, Y, C = NULL,
     .full_assoc(X, W, Y, C,
                 test = "nls",
                 nls.link = "identity",
-                regularlize = regularlize,
+                regularize = regularize,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   }, "nls.log" = {
     .full_assoc(X, W, Y, C,
                 test = "nls",
                 nls.link = "log",
-                regularlize = regularlize,
+                regularize = regularize,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   }, "nls.logit" = {
     .full_assoc(X, W, Y, C,
                 test = "nls",
                 nls.link = "logit",
-                regularlize = regularlize,
+                regularize = regularize,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   # }, "glmnet" = {
@@ -339,7 +339,7 @@ ctRUV = function (X, W, Y, C = NULL,
 .full_assoc = function (X, W, Y, C,
                         test,
                         nls.link,
-                        regularlize = TRUE,
+                        regularize = TRUE,
                         alpha,
                         lower.limit,
                         upper.limit,
@@ -1145,7 +1145,7 @@ ctRUV = function (X, W, Y, C = NULL,
             mod         = nls_result$mod
             P           = nls_result$P
 
-            if (regularlize) {
+            if (regularize) {
 
               if (is.null(C)) {
                 x =
@@ -1254,7 +1254,7 @@ ctRUV = function (X, W, Y, C = NULL,
               #                   dof = dof,
               #                   GCV = GCV))
 
-            } # regularlize
+            } # regularize
 
             res = data.frame(estimate = c(start_beta, start_gamma))
             # Wald test
