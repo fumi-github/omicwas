@@ -1,0 +1,150 @@
+---
+title: "Introduction to omicwas"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{intro}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Installation
+
+```{r, eval = FALSE}
+install.packages("devtools")
+devtools::install_github("fumi-github/omicwas")
+```
+
+If you encounter dependency error for `sva` package, install it from Bioconductor:
+
+```{r, eval = FALSE}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+   install.packages("BiocManager")
+BiocManager::install("sva")
+```
+
+## Usage
+
+`omicwas` is a package for cell-type-specific disease association testing,
+using bulk tissue data as input.
+The package accepts DNA methylation data for epigenome-wide association studies (EWAS),
+as well as gene expression data for differential gene expression analyses.
+The main function is `ctassoc`
+
+```{r setup}
+library(omicwas)
+```
+
+See description.
+
+```{r}
+?ctassoc
+```
+
+## Analyzing DNA methylation
+
+Let's load a sample data.
+
+```{r}
+data(GSE42861small)
+X = GSE42861small$X
+Y = GSE42861small$Y
+Y = Y[seq(1, 20), ] # for brevity
+W = GSE42861small$W
+C = GSE42861small$C
+```
+
+See description.
+
+```{r}
+?GSE42861small
+```
+
+The conventional way is to use ordinary linear regression.
+
+```{r}
+result = ctassoc(X, W, Y, C = C, test = "full")
+result$coefficients
+```
+
+We recommend nonlinear regression with ridge regularization.
+For DNA methylation, we use the **logit** function for normalization,
+and the test option is `nls.logit`
+
+```{r}
+result = ctassoc(X, W, Y, C = C, test = "nls.logit")
+result$coefficients
+```
+
+## Analyzing gene expression
+
+Let's load a sample data.
+
+```{r}
+data(GTExsmall)
+X = GTExsmall$X
+Y = GTExsmall$Y + 1
+Y = Y[seq(1, 20), ] # for brevity
+W = GTExsmall$W
+C = GTExsmall$C
+```
+
+See description.
+
+```{r}
+?GTExsmall
+```
+
+The conventional way is to use ordinary linear regression.
+
+```{r}
+result = ctassoc(X, W, Y, C = C, test = "full")
+result$coefficients
+```
+
+We recommend nonlinear regression with ridge regularization.
+For DNA methylation, we use the **log** function for normalization,
+and the test option is `nls.log`
+
+```{r}
+result = ctassoc(X, W, Y, C = C, test = "nls.log")
+result$coefficients
+```
+
+## Analyzing eQTL
+
+Let's load a sample data.
+
+```{r}
+data(GSE79262small)
+X    = GSE79262small$X
+Xpos = GSE79262small$Xpos
+W    = GSE79262small$W
+Y    = GSE79262small$Y
+Ypos = GSE79262small$Ypos
+C    = GSE79262small$C
+X    = X[seq(1, 3001, 100), ] # for brevity
+Xpos = Xpos[seq(1, 3001, 100)]
+Y    = Y[seq(1, 501, 100), ]
+Ypos = Ypos[seq(1, 501, 100)]
+```
+
+See description.
+
+```{r}
+?GSE79262small
+```
+
+For eQTL, we use `ctcisQTL` function instead of `ctassoc`.
+Currently, it performs linear ridge regression using the `ridge` package.
+We will soon replace it with the nls.* algorithm in `ctassoc`.
+
+```{r}
+ctcisQTL(X, Xpos, W, Y, Ypos, C = C)
+```
