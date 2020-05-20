@@ -20,6 +20,10 @@ To install from CRAN archive (possibly a version older than github):
 
     install.packages("omicwas")
 
+To uninstall package:
+
+    remove.packages("omicwas")
+
 ## Usage
 
     library(omicwas)
