@@ -117,7 +117,7 @@ result = ctassoc(X, W, Y, C = C, test = "nls.log")
 result$coefficients
 ```
 
-## Analyzing eQTL
+## Analyzing mQTL
 
 Let's load a sample data.
 
