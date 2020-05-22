@@ -1,7 +1,7 @@
 Package: omicwas
 Type: Package
 Title: Cell-Type-Specific Association Testing in Bulk Omics Experiments
-Version: 0.4.0
+Version: 0.5.0
 Authors@R: person("Fumihiko", "Takeuchi", role = c("aut", "cre"),
                   email = "fumihiko@takeuchi.name",
                   comment = c(ORCID = "0000-0003-3185-5661"))
