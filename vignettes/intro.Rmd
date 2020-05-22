@@ -69,7 +69,8 @@ See description.
 The conventional way is to use ordinary linear regression.
 
 ```{r}
-result = ctassoc(X, W, Y, C = C, test = "full")
+result = ctassoc(X, W, Y, C = C,
+                 test = "full")
 result$coefficients
 ```
 
@@ -78,7 +79,9 @@ For DNA methylation, we use the **logit** function for normalization,
 and the test option is `nls.logit`
 
 ```{r}
-result = ctassoc(X, W, Y, C = C, test = "nls.logit")
+result = ctassoc(X, W, Y, C = C,
+                 test = "nls.logit",
+                 regularize = TRUE)
 result$coefficients
 ```
 
@@ -104,7 +107,8 @@ See description.
 The conventional way is to use ordinary linear regression.
 
 ```{r}
-result = ctassoc(X, W, Y, C = C, test = "full")
+result = ctassoc(X, W, Y, C = C,
+                 test = "full")
 result$coefficients
 ```
 
@@ -113,7 +117,9 @@ For DNA methylation, we use the **log** function for normalization,
 and the test option is `nls.log`
 
 ```{r}
-result = ctassoc(X, W, Y, C = C, test = "nls.log")
+result = ctassoc(X, W, Y, C = C,
+                 test = "nls.log",
+                 regularize = TRUE)
 result$coefficients
 ```
 

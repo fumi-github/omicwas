@@ -20,11 +20,13 @@ test_that("ctassoc works for various test options", {
   expect_equal(
     head(ctassoc(X = X, W = W, Y = Y[1:50, ], C = C,
                  test = "nls.identity",
+                 regularize = TRUE,
                  chunk.size = 10)$coefficients$statistic, 100),
     resnlsidentity$coefficients$statistic)
   expect_equal(
     head(ctassoc(X = X, W = W, Y = Y[1:50, ], C = C,
                  test = "nls.logit",
+                 regularize = TRUE,
                  chunk.size = 10)$coefficients$statistic, 100),
     resnlslogit$coefficients$statistic)
   expect_equal(
@@ -52,6 +54,7 @@ test_that("GTEx dataset works for various test options", {
   expect_equal(
     head(ctassoc(X = X, W = W, Y = Y[1:50, ], C = C,
                  test = "nls.log",
+                 regularize = TRUE,
                  chunk.size = 10)$coefficients$statistic, 100),
     resnlslog$coefficients$statistic)
 })
