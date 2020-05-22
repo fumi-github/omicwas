@@ -10,7 +10,7 @@ ctassoc(
   Y,
   C = NULL,
   test = "full",
-  regularize = TRUE,
+  regularize = FALSE,
   num.cores = 1,
   chunk.size = 1000,
   seed = 123
@@ -30,7 +30,10 @@ X, W, Y, C should be numeric.}
 \code{"nls.identity"}, \code{"nls.log"}, \code{"nls.logit"}, \code{"reducedrankridge"}
 or \code{"ridge"}.}
 
-\item{regularize}{Whether to apply Tikhonov (ie ridge) regularization.
+\item{regularize}{Whether to apply Tikhonov (ie ridge) regularization
+to \eqn{\beta_{h j k}}.
+The regularization parameter is chosen automatically according to
+an unbiased version of (Lawless & Wang, 1976).
 Effective for \code{nls.*} tests.}
 
 \item{num.cores}{Number of CPU cores to use.
@@ -135,6 +138,12 @@ result = ctassoc(X, W, Y, C = C)
 result$coefficients
 }
 
+}
+\references{
+Lawless, J. F., & Wang, P. (1976). A simulation study of ridge and other
+regression estimators.
+Communications in Statistics - Theory and Methods, 5(4), 307–323.
+\url{https://doi.org/10.1080/03610927608827353}
 }
 \seealso{
 ctRUV

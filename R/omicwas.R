@@ -84,7 +84,10 @@
 #' @param test Statistical test to apply; either \code{"full"} or \code{"marginal"},
 #' \code{"nls.identity"}, \code{"nls.log"}, \code{"nls.logit"}, \code{"reducedrankridge"}
 #' or \code{"ridge"}.
-#' @param regularize Whether to apply Tikhonov (ie ridge) regularization.
+#' @param regularize Whether to apply Tikhonov (ie ridge) regularization
+#' to \eqn{\beta_{h j k}}.
+#' The regularization parameter is chosen automatically according to
+#' an unbiased version of (Lawless & Wang, 1976).
 #' Effective for \code{nls.*} tests.
 #' @param num.cores Number of CPU cores to use.
 #' Full and marginal tests are run in serial, thus num.cores is ignored.
@@ -94,6 +97,11 @@
 #' @param seed Seed for random number generation.
 #' @return A list with one element, which is named "coefficients".
 #' The element gives the estimate, statistic, p.value in tibble format.
+#' @references
+#' Lawless, J. F., & Wang, P. (1976). A simulation study of ridge and other
+#' regression estimators.
+#' Communications in Statistics - Theory and Methods, 5(4), 307–323.
+#' \url{https://doi.org/10.1080/03610927608827353}
 #' @seealso ctRUV
 #' @examples
 #' \donttest{
@@ -122,7 +130,7 @@
 #' @export
 ctassoc = function (X, W, Y, C = NULL,
                     test = "full",
-                    regularize = TRUE,
+                    regularize = FALSE,
                     # alpha = 0,
                     # lower.limit = NULL,
                     # upper.limit = NULL,
