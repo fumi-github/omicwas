@@ -9,7 +9,14 @@
 #' and the latter will be a SNP.
 #' To cope with the large number of combinations,
 #' the testing is limited to pairs whose position is within
-#' the difference specified by \code{max.pos.diff}
+#' the difference specified by \code{max.pos.diff}.
+#' In detail, this function performs linear ridge regression,
+#' whereas nls.identity test of ctassoc actually is nonlinear regression
+#' but with f = identity as normalizing transformation).
+#' In order to speed up computation, in the first round, the parameters \eqn{\alpha_{h j}} and
+#' \eqn{\gamma_{j l}} are fit by linear regression,
+#' and in the second round, \eqn{\beta_{h j k}} are fit and tested by
+#' linear ridge regression (see documentation for \link[omicwas]{ctassoc}).
 #'
 #' @param X Matrix (or vector) of SNP genotypes; SNPs x samples.
 #' @param Xpos Vector of the physical position of X
