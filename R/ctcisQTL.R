@@ -23,7 +23,7 @@
 #' X, Xpos, W, Y, Ypos, C should be numeric.
 #' @param max.pos.diff Maximum positional difference to compute cis-QTL.
 #' Association is computed between a row of X and a row of Y,
-#' only when thet are within this limit.
+#' only when they are within this limit.
 #' Since the limiting is only by position, the function needs to be run
 #' separately for each chromosome.
 #' @param nPC A hyperparameter that (indirectly) specifies the penalty
@@ -32,10 +32,9 @@
 #' @param outdir Output directory.
 #' @param outfile Output file.
 #' @param num.cores Number of CPU cores to use.
-#' Full and marginal tests are run in serial, thus num.cores is ignored.
 #' @param seed Seed for random number generation.
 #' @return The estimate, statistic, p.value are written to the specified file.
-#' @seealso ctRUV
+#' @seealso ctassoc
 #' @examples
 #' \donttest{
 #' data(GSE79262small)
