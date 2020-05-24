@@ -72,8 +72,8 @@ W    = GSE79262small$W
 Y    = GSE79262small$Y
 Ypos = GSE79262small$Ypos
 C    = GSE79262small$C
-Y    = Y[seq(1, 601, 20), ] # for brevity
-Ypos = Ypos[seq(1, 601, 20)]
+X    = X[seq(1, 3601, 100), ] # for brevity
+Xpos = Xpos[seq(1, 3601, 100)]
 ctcisQTL(X, Xpos, W, Y, Ypos, C = C)
 }
 
