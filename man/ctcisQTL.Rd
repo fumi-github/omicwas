@@ -12,11 +12,8 @@ ctcisQTL(
   Ypos,
   C = NULL,
   max.pos.diff = 1e+06,
-  nPC = NULL,
   outdir = tempdir(),
-  outfile = "ctcisQTL.out.txt",
-  num.cores = 1,
-  seed = 123
+  outfile = "ctcisQTL.out.txt"
 )
 }
 \arguments{
@@ -24,7 +21,7 @@ ctcisQTL(
 
 \item{Xpos}{Vector of the physical position of X}
 
-\item{W}{Matrix of proportion of cell types; samples x cell types.}
+\item{W}{Matrix of cell type composition; samples x cell types.}
 
 \item{Y}{Matrix (or vector) of bulk omics measurements; markers x samples.}
 
@@ -34,23 +31,14 @@ ctcisQTL(
 X, Xpos, W, Y, Ypos, C should be numeric.}
 
 \item{max.pos.diff}{Maximum positional difference to compute cis-QTL.
-Association is computed between a row of X and a row of Y,
-only when thet are within this limit.
+Association analysis is performed between a row of X and a row of Y,
+only when they are within this limit.
 Since the limiting is only by position, the function needs to be run
 separately for each chromosome.}
-
-\item{nPC}{A hyperparameter that (indirectly) specifies the penalty
-for ridge regression.  If \code{NULL}, it is inferred from the data.
-A unique hyperparameter is applied to all SNP-marker pairs.}
 
 \item{outdir}{Output directory.}
 
 \item{outfile}{Output file.}
-
-\item{num.cores}{Number of CPU cores to use.
-Full and marginal tests are run in serial, thus num.cores is ignored.}
-
-\item{seed}{Seed for random number generation.}
 }
 \value{
 The estimate, statistic, p.value are written to the specified file.
@@ -59,17 +47,14 @@ The estimate, statistic, p.value are written to the specified file.
 Cell-Type-Specific QTL analysis
 }
 \details{
-The functionality is almost the same as the ridge test
+The functionality is almost the same as the nls.identity test
 in ctassoc.
-Association is tested between each row of Y and each row of X.
+Association analysis is performed between each row of Y and each row of X.
 Usually, the former will be a methylation/expression marker,
 and the latter will be a SNP.
 To cope with the large number of combinations,
 the testing is limited to pairs whose position is within
 the difference specified by \code{max.pos.diff}
-In addition, a uniform hyperparameter of ridge regression is used
-for all pairs.
-We use the \link[ridge]{linearRidge} function of the ridge package.
 }
 \examples{
 \donttest{
@@ -87,5 +72,5 @@ ctcisQTL(X, Xpos, W, Y, Ypos, C = C)
 
 }
 \seealso{
-ctRUV
+ctassoc
 }
