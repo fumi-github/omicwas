@@ -124,7 +124,7 @@
 #' @importFrom ridge linearRidge
 #' @importFrom rlang .data abort inform
 #' @importFrom R.utils withTimeout
-#' @importFrom stats coef lm nls nls.control pnorm plogis pt qlogis quantile residuals sd
+#' @importFrom stats coef lm median nls nls.control pnorm plogis pt qlogis quantile residuals sd
 #' @importFrom tidyr pivot_longer
 #' @importFrom utils getFromNamespace setTxtProgressBar txtProgressBar
 #' @export
