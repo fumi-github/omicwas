@@ -2,14 +2,15 @@
 #'
 #' Cell-Type-Specific QTL analysis
 #'
-#' The functionality is almost the same as the nls.identity test
-#' in ctassoc.
+#' A function for analyses of QTL, such as eQTL, mQTL, pQTL.
+#' The statistical test is almost identical to
+#' \code{ctassoc(test =  "nls.identity", regularize = "TRUE")}.
 #' Association analysis is performed between each row of Y and each row of X.
 #' Usually, the former will be a methylation/expression marker,
 #' and the latter will be a SNP.
 #' To cope with the large number of combinations,
 #' the testing is limited to pairs whose position is within
-#' the difference specified by \code{max.pos.diff}.
+#' the difference specified by \code{max.pos.diff}; i.e., limited to cis QTL.
 #' In detail, this function performs linear ridge regression,
 #' whereas nls.identity test of ctassoc actually is nonlinear regression
 #' but with f = identity as normalizing transformation).
