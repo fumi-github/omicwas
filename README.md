@@ -27,7 +27,7 @@ To uninstall package:
 ## Usage
 
     library(omicwas)
-    browseVignettes("omicwas")
+    vignette("intro", package = "omicwas")
 
 ## Information
 
