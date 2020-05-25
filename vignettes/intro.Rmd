@@ -125,6 +125,15 @@ result$coefficients
 
 ## Analyzing mQTL
 
+For QTL analyses, we use `ctcisQTL` function instead of `ctassoc`.
+The statistical test is almost identical to `ctassoc(test = "nls.identity", regularize = TRUE)`.
+Association analysis is performed between each row of Y and each row of X.
+See description.
+
+```{r}
+?ctcisQTL
+```
+
 Let's load a sample data.
 
 ```{r}
@@ -147,9 +156,7 @@ See description.
 ?GSE79262small
 ```
 
-For eQTL, we use `ctcisQTL` function instead of `ctassoc`.
-Currently, it performs linear ridge regression using the `ridge` package.
-We will soon replace it with the nls.* algorithm in `ctassoc`.
+Analyze mQTL.
 
 ```{r}
 ctcisQTL(X, Xpos, W, Y, Ypos, C = C)
