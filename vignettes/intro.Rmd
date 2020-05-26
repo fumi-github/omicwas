@@ -85,6 +85,18 @@ result = ctassoc(X, W, Y, C = C,
 result$coefficients
 ```
 
+The first 19 lines shows the result for CpG site cg10543797.
+Line 1 shows that the basal methylation level in CD4.
+(actually CD4+ T cells) is
+plogis(1.498) = 0.817, so this cell type is 81% methylated.
+Line 8 shows that the CD4.-specific effect of the disease
+is 7.10e-04	(in logit scale).
+Since the p.value is 0.64, this is not significant.
+Line 15 shows that the effect of sexF (female compared to male) is
+-4.14e-02 with a small p.value 9.15e-05.
+Since sexF is a covariate that has uniform effect across cell types,
+the celltype column is NA.
+
 ## Analyzing gene expression
 
 Let's load a sample data.
@@ -122,6 +134,17 @@ result = ctassoc(X, W, Y, C = C,
                  regularize = TRUE)
 result$coefficients
 ```
+
+The first 13 lines shows the result for transcript ENSG00000059804.
+Line 1 shows that the basal expression level in Granulocytes is
+exp(8.847) = 6955.
+Line 7 shows that the Granulocytes-specific effect of age
+is 4.62e-04	(in log scale).
+Since the p.value is 0.82, this is not significant.
+Line 13 shows that the effect of sexF (female compared to male) is
+-2.57e-03 with p.value 0.97
+Since sexF is a covariate that has uniform effect across cell types,
+the celltype column is NA.
 
 ## Analyzing mQTL
 
