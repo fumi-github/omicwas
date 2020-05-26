@@ -48,6 +48,12 @@ decrease num.cores and/or chunk.size.}
 \value{
 A list with one element, which is named "coefficients".
 The element gives the estimate, statistic, p.value in tibble format.
+In order to transform the estimate for \eqn{\alpha_{h j}} to the original scale,
+apply \code{plogis} for \code{test = nls.logit} and
+\code{exp} for \code{test = nls.log}.
+The estimate for \eqn{\beta_{h j k}} by \code{test = nls.log} is
+the natural logarithm of fold-change, not log2.
+If numerical convergence fails, \code{NA} is returned for that marker.
 }
 \description{
 Cell-Type-Specific Association Testing
