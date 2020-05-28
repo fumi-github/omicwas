@@ -85,7 +85,7 @@ result = ctassoc(X, W, Y, C = C,
 result$coefficients
 ```
 
-The first 19 lines shows the result for CpG site cg10543797.
+The first 19 lines show the result for CpG site cg10543797.
 Line 1 shows that the basal methylation level in CD4.
 (actually CD4+ T cells) is
 plogis(1.498) = 0.817, so this cell type is 81% methylated.
@@ -135,7 +135,7 @@ result = ctassoc(X, W, Y, C = C,
 result$coefficients
 ```
 
-The first 13 lines shows the result for transcript ENSG00000059804.
+The first 13 lines show the result for transcript ENSG00000059804.
 Line 1 shows that the basal expression level in Granulocytes is
 exp(8.847) = 6955.
 Line 7 shows that the Granulocytes-specific effect of age
@@ -149,7 +149,9 @@ the celltype column is NA.
 ## Analyzing mQTL
 
 For QTL analyses, we use `ctcisQTL` function instead of `ctassoc`.
-The statistical test is almost identical to `ctassoc(test = "nls.identity", regularize = TRUE)`.
+To speed up computation, we perform linear ridge regression,
+thus the statistical test is almost identical to `ctassoc(test = "nls.identity", regularize = TRUE)`.
+We analyze only in the linear scale.
 Association analysis is performed between each row of Y and each row of X.
 See description.
 
@@ -184,3 +186,17 @@ Analyze mQTL.
 ```{r}
 ctcisQTL(X, Xpos, W, Y, Ypos, C = C)
 ```
+
+The result is stored in a file.
+
+```{r}
+head(
+  read.table(file.path(tempdir(), "ctcisQTL.out.txt"),
+             header = TRUE,
+             sep ="\t"))
+```
+
+The first 3 lines show the result for the association of
+SNP rs6678176 with CpG site cg19251656.
+Line 1 shows that the CD4T-specific effect of the SNP is -0.003.
+Since the p.value is 0.75, this is not significant.
