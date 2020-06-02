@@ -20,9 +20,9 @@ A subset of 500 CpG sites were randomly selected from the original EWAS dataset.
 \examples{
 data(GSE42861small)
 X = GSE42861small$X
+W = GSE42861small$W
 Y = GSE42861small$Y
 Y = Y[seq(1, 20), ] # for brevity
-W = GSE42861small$W
 C = GSE42861small$C
 result = ctassoc(X, W, Y, C = C)
 result$coefficients

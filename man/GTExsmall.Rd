@@ -20,9 +20,9 @@ A subset of 500 genes were randomly selected from the original dataset.
 \examples{
 data(GTExsmall)
 X = GTExsmall$X
+W = GTExsmall$W
 Y = GTExsmall$Y + 1
 Y = Y[seq(1, 20), ] # for brevity
-W = GTExsmall$W
 C = GTExsmall$C
 result = ctassoc(X, W, Y, C = C)
 result$coefficients

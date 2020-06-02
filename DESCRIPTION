@@ -10,8 +10,8 @@ Description: In bulk epigenome/transcriptome experiments, molecular expression
     This package tests association of a disease/phenotype with a molecular marker
     for each cell type.
     The proportion of cell types in each sample needs to be given as input.
-    The package is applicable to epigenome-wide association study (EWAS) of
-    microarray experiments.
+    The package is applicable to epigenome-wide association study (EWAS) and
+    differential gene expression analysis.
     Takeuchi and Kato (submitted)
     "omicwas: cell-type-specific epigenome-wide and transcriptome association study".
 URL: https://github.com/fumi-github/omicwas

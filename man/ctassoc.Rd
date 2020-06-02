@@ -26,7 +26,7 @@ ctassoc(
 \item{C}{Matrix (or vector) of covariates; samples x covariates.
 X, W, Y, C should be numeric.}
 
-\item{test}{Statistical test to apply; either \code{"full"} or \code{"marginal"},
+\item{test}{Statistical test to apply; either \code{"full"}, \code{"marginal"},
 \code{"nls.identity"}, \code{"nls.log"}, \code{"nls.logit"}, \code{"reducedrankridge"}
 or \code{"ridge"}.}
 
@@ -127,7 +127,7 @@ The statistical model is
 The error of the marker level is is noramlly distributed with variance
 \eqn{\sigma^2_j}, independently among samples.
 
-The \code{ridge} regression aims to cope with multicollinearity of
+The ridge regression aims to cope with multicollinearity of
 the interacting terms \eqn{W_{i h} * X_{i k}}.
 Ridge regression is fit by minimizing the residual sum of squares (RSS) plus
 \eqn{\lambda \sum_{h k} \beta_{h j k}^2}, where \eqn{\lambda > 0} is the
@@ -137,8 +137,8 @@ regularization parameter.
 \donttest{
 data(GSE42861small)
 X = GSE42861small$X
-Y = GSE42861small$Y
 W = GSE42861small$W
+Y = GSE42861small$Y
 C = GSE42861small$C
 result = ctassoc(X, W, Y, C = C)
 result$coefficients
@@ -152,5 +152,5 @@ Communications in Statistics - Theory and Methods, 5(4), 307–323.
 \url{https://doi.org/10.1080/03610927608827353}
 }
 \seealso{
-ctRUV
+ctcisQTL
 }
