@@ -31,9 +31,7 @@ Imports: broom,
     matrixStats,
     parallel,
     PCDimension,
-    ridge,
     rlang,
-    R.utils,
     sva,
     tidyr
 RoxygenNote: 7.1.0

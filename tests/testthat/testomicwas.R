@@ -31,10 +31,6 @@ test_that("ctassoc works for various test options", {
     resnlslogit$coefficients$statistic)
   expect_equal(
     head(ctassoc(X = X, W = W, Y = Y, C = C,
-                 test = "ridge")$coefficients$statistic, 100),
-    resridge$coefficients$statistic)
-  expect_equal(
-    head(ctassoc(X = X, W = W, Y = Y, C = C,
                  test = "full")$coefficients$statistic, 100),
     resfull$coefficients$statistic)
   expect_equal(

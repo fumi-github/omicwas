@@ -82,8 +82,7 @@
 #' @param C Matrix (or vector) of covariates; samples x covariates.
 #' X, W, Y, C should be numeric.
 #' @param test Statistical test to apply; either \code{"full"}, \code{"marginal"},
-#' \code{"nls.identity"}, \code{"nls.log"}, \code{"nls.logit"}, \code{"reducedrankridge"}
-#' or \code{"ridge"}.
+#' \code{"nls.identity"}, \code{"nls.log"}, \code{"nls.logit"} or \code{"reducedrankridge"}.
 #' @param regularize Whether to apply Tikhonov (ie ridge) regularization
 #' to \eqn{\beta_{h j k}}.
 #' The regularization parameter is chosen automatically according to
@@ -127,9 +126,7 @@
 #' @importFrom magrittr %>%
 #' @importFrom matrixStats colSds
 #' @importFrom parallel makeCluster parApply stopCluster
-#' @importFrom ridge linearRidge
 #' @importFrom rlang .data abort inform
-#' @importFrom R.utils withTimeout
 #' @importFrom stats coef lm median nls nls.control pnorm plogis pt qlogis quantile residuals sd
 #' @importFrom tidyr pivot_longer
 #' @importFrom utils getFromNamespace setTxtProgressBar txtProgressBar
@@ -143,8 +140,8 @@ ctassoc = function (X, W, Y, C = NULL,
                     num.cores = 1,
                     chunk.size = 1000,
                     seed = 123) {
-  if (!(test %in% c("reducedrankridge", "ridge", "full", "marginal", "nls.identity", "nls.log", "nls.logit"))) {
-    abort('Error: test must be either "reducedrankridge", "ridge", "full", "marginal", "nls.identity", "nls.log", "nls.logit"')
+  if (!(test %in% c("reducedrankridge", "full", "marginal", "nls.identity", "nls.log", "nls.logit"))) {
+    abort('Error: test must be either "reducedrankridge", "full", "marginal", "nls.identity", "nls.log", "nls.logit"')
   }
   X = .as.matrix(X, d = "vertical", nam = "X")
   W = .as.matrix(W, d = "vertical", nam = "W")
@@ -163,11 +160,6 @@ ctassoc = function (X, W, Y, C = NULL,
                 num.cores = num.cores,
                 chunk.size = chunk.size,
                 seed = seed)
-  }, "ridge" = {
-    .full_assoc(X, W, Y, C,
-                test = test,
-                num.cores = num.cores,
-                chunk.size = chunk.size)
   }, "nls.identity" = {
     .full_assoc(X, W, Y, C,
                 test = "nls",
@@ -610,71 +602,6 @@ ctRUV = function (X, W, Y, C = NULL,
     # estimate = as.data.frame(estimate)
     # SE = as.data.frame(SE)
     # colnames(estimate) = colnames(SE) = colnames(X1W)
-
-  }, "ridge" = { # -----------------------------------------
-    inform("Ridge regression ...")
-    # First regress out the intercepts,
-    # because all variables are regularized in the ridge package.
-    if (is.null(C)) {
-      tYadjW = lm(y ~ x,
-                  data = list(y = t(Y), x = W))$residuals
-    } else {
-      tYadjW = lm(y ~ x,
-                  data = list(y = t(Y), x = cbind(W, C)))$residuals
-    }
-    rm(Y)
-    gc()
-    batchsize = num.cores * chunk.size
-    totalsize = ncol(tYadjW)
-    nbatches = ceiling(totalsize/batchsize)
-    tYadjWff = ff::ff(
-      tYadjW,
-      dim = dim(tYadjW),
-      dimnames = dimnames(tYadjW))
-    rm(tYadjW)
-    gc()
-    result = list()
-    pb = txtProgressBar(max = nbatches, style = 3)
-    for (i in 0:(nbatches - 1)) {
-      result = c(
-        result,
-        parApply(
-          cl = cl,
-          tYadjWff[, seq(1 + i * batchsize,
-                         min((i+1) * batchsize, totalsize))],
-          2,
-          function (y, XW) {
-            # ridge occaisionaly takes very long time
-            tryCatch(
-              expr = {
-                R.utils::withTimeout(
-                  {mod = ridge::linearRidge(y ~ 0 + x,
-                                            data = list(y = y, x = XW))
-                  # Use summary.ridgeLinear to get unscaled coefficients,
-                  # because coefficients in mod$coef or pvals(mod)$coef are scaled.
-                  fun = getFromNamespace("summary.ridgeLinear", "ridge")
-                  res = data.frame(fun(mod)$summaries[[mod$chosen.nPCs]]$coefficients)
-                  res$celltypeterm = sub("^x", "", rownames(res))
-                  rownames(res) = NULL
-                  res = res[, c("Estimate", "t.value..scaled.", "Pr...t..",
-                                "celltypeterm")]
-                  colnames(res)[1:3] = c("estimate", "statistic", "p.value")
-                  return(res)
-                  },
-                  timeout = 300) },
-              TimeoutException = function (ex) {
-                data.frame(estimate     = rep(NA, ncol(XW)),
-                           statistic    = rep(NA, ncol(XW)),
-                           p.value      = rep(NA, ncol(XW)),
-                           celltypeterm = colnames(XW)) }) },
-          XW))
-      setTxtProgressBar(pb, i + 1)
-    }
-    close(pb)
-    ff::delete(tYadjWff)
-    gc()
-    result = dplyr::as_tibble(data.table::rbindlist(result, idcol="response"))
-    result$statistic = sign(result$estimate) * result$statistic
 
   }, "nls" = { # -----------------------------------------
     inform(paste0("nls.", nls.link, " ..."))

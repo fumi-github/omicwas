@@ -27,8 +27,7 @@ ctassoc(
 X, W, Y, C should be numeric.}
 
 \item{test}{Statistical test to apply; either \code{"full"}, \code{"marginal"},
-\code{"nls.identity"}, \code{"nls.log"}, \code{"nls.logit"}, \code{"reducedrankridge"}
-or \code{"ridge"}.}
+\code{"nls.identity"}, \code{"nls.log"}, \code{"nls.logit"} or \code{"reducedrankridge"}.}
 
 \item{regularize}{Whether to apply Tikhonov (ie ridge) regularization
 to \eqn{\beta_{h j k}}.
