@@ -31,4 +31,6 @@ To uninstall package:
 
 ## Information
 
+Preprint available from [bioRxiv](https://biorxiv.org/cgi/content/short/2020.06.18.158758v1)
+
 [CSHL (14 Nov 2019) poster](http://103.253.147.127/PUBLICATIONS/191114cshl.pdf)
