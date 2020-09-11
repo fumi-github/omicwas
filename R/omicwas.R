@@ -1267,7 +1267,15 @@ ctRUV = function (X, W, Y, C = NULL,
                   xx,
                   as.list(r))),
               nrow = nrow(xx[[1]]))
-            sigma2Hlambdainv = solve(t(x) %*% x - z)
+            e = try({ sigma2Hlambdainv = solve(t(x) %*% x - z) })
+            if (inherits(e, "try-error")) {
+              res =
+                data.frame(estimate     = NA,
+                           statistic    = NA,
+                           p.value      = NA,
+                           celltypeterm = c(colnames(oneXotimesW), colnames(C)))
+              return(res)
+            }
             SE = sqrt(sigma2 * diag(sigma2Hlambdainv %*%
                                       sigma2Hstar %*%
                                       sigma2Hlambdainv))
