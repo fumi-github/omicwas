@@ -428,6 +428,10 @@ ctRUV = function (X, W, Y, C = NULL,
   Wdiff = cbind(1, W[, -1] -  W[, 1] %*% t(colMeans(W[, -1]) / mean(W[, 1])))
   colnames(Wdiff)[1] = "1"
   X1Wdiff = as.matrix(do.call(cbind, apply(Wdiff, 2, function(W_h) {cbind(as.data.frame(X), 1) * W_h})))
+  Wcent = cbind(1, .colcenter(W))
+  colnames(Wcent)[1] = "1"
+  X1Wcent = as.matrix(do.call(cbind, apply(Wcent, 2, function(W_h) {cbind(as.data.frame(X), 1) * W_h})))
+  X1Wcent = X1Wcent[, colnames(X1Wcent) != "1.1"]
 
   switch(test, "full" = { # --------------------------------
     inform("Linear regression ...")
@@ -463,7 +467,9 @@ ctRUV = function (X, W, Y, C = NULL,
       if (is.null(C)) {
 
       } else {
-
+        Yadj1 = t(lm(y ~ x,
+                     data = list(y = t(Y), x = C))$residuals)
+        result = .lmridgeLW76(X1Wcent, t(Yadj1))
       }
     } else {
       if (is.null(C)) { ### TODO !!!
