@@ -10,6 +10,7 @@ test_that("ctassoc works for various test options", {
   C = GSE42861small$C
   load("../GSE42861smallresult.RData")
   load("../GSE42861smallresult2.RData")
+  load("../GSE42861smallresult3.RData")
   expect_equal(
     head(ctRUV(X = X, W = W, Y = Y, C = C), 100),
     resRUV)
@@ -29,6 +30,16 @@ test_that("ctassoc works for various test options", {
                  regularize = TRUE,
                  chunk.size = 10)$coefficients$statistic, 100),
     resnlslogit$coefficients$statistic)
+  expect_equal(
+    head(ctassoc(X = X, W = W, Y = Y, C = C,
+                 test = "propdiff.identity",
+                 regularize = FALSE)$coefficients$statistic, 100),
+    respropdiffidentity.regularizeFALSE$coefficients$statistic)
+  expect_equal(
+    head(ctassoc(X = X, W = W, Y = Y, C = C,
+                 test = "propdiff.logit",
+                 regularize = FALSE)$coefficients$statistic, 100),
+    respropdifflogit.regularizeFALSE$coefficients$statistic)
   expect_equal(
     head(ctassoc(X = X, W = W, Y = Y, C = C,
                  test = "full")$coefficients$statistic, 100),
