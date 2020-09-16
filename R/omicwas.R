@@ -140,8 +140,10 @@ ctassoc = function (X, W, Y, C = NULL,
                     num.cores = 1,
                     chunk.size = 1000,
                     seed = 123) {
-  if (!(test %in% c("reducedrankridge", "full", "marginal", "nls.identity", "nls.log", "nls.logit"))) {
-    abort('Error: test must be either "reducedrankridge", "full", "marginal", "nls.identity", "nls.log", "nls.logit"')
+  if (!(test %in% c("reducedrankridge", "full", "marginal",
+                    "nls.identity", "nls.log", "nls.logit",
+                    "propdiff.identity", "propdiff.log", "propdiff.logit"))) {
+    abort('Error: test must be either "reducedrankridge", "full", "marginal", "nls.identity", "nls.log", "nls.logit", "propdiff.identity", "propdiff.log", "propdiff.logit"')
   }
   X = .as.matrix(X, d = "vertical", nam = "X")
   W = .as.matrix(W, d = "vertical", nam = "W")
@@ -193,6 +195,27 @@ ctassoc = function (X, W, Y, C = NULL,
   }, "full" = {
     .full_assoc(X, W, Y, C,
                 test = test,
+                num.cores = num.cores,
+                chunk.size = chunk.size)
+  }, "propdiff.identity" = {
+    .full_assoc(X, W, Y, C,
+                test = "propdiff",
+                nls.link = "identity",
+                regularize = regularize,
+                num.cores = num.cores,
+                chunk.size = chunk.size)
+  }, "propdiff.log" = {
+    .full_assoc(X, W, Y, C,
+                test = "propdiff",
+                nls.link = "log",
+                regularize = regularize,
+                num.cores = num.cores,
+                chunk.size = chunk.size)
+  }, "propdiff.logit" = {
+    .full_assoc(X, W, Y, C,
+                test = "propdiff",
+                nls.link = "logit",
+                regularize = regularize,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   }, "marginal" = {
@@ -402,6 +425,9 @@ ctRUV = function (X, W, Y, C = NULL,
                                    function(X_k) {as.data.frame(W) * X_k})))
   colnames(oneXotimesW) =
     sub('([^.]*)\\.([^.]*)', '\\2.\\1', colnames(oneXotimesW), perl = TRUE)
+  Wdiff = cbind(1, W[, -1] -  W[, 1] %*% t(colMeans(W[, -1]) / mean(W[, 1])))
+  colnames(Wdiff)[1] = "1"
+  X1Wdiff = as.matrix(do.call(cbind, apply(Wdiff, 2, function(W_h) {cbind(as.data.frame(X), 1) * W_h})))
 
   switch(test, "full" = { # --------------------------------
     inform("Linear regression ...")
@@ -414,6 +440,50 @@ ctRUV = function (X, W, Y, C = NULL,
     }
     result$term = sub("^x", "", result$term)
     result = dplyr::rename(result, celltypeterm = .data$term)
+
+  }, "propdiff" = { # --------------------------------
+    inform("Interaction with proportion difference ...")
+    switch(
+      nls.link,
+      logit = {
+        if (min(Y, na.rm = TRUE) < 0 | max(Y, na.rm = TRUE) > 1) {
+          abort("Error: for test = *.logit, values of Y must be between 0 and 1")
+        }
+        if (min(Y, na.rm = TRUE) == 0 | max(Y, na.rm = TRUE) == 1) {
+          Y = 0.998 * Y + 0.001
+        }
+        Y = qlogis(Y)
+      }, log = {
+        if (min(Y, na.rm = TRUE) <= 0) {
+          abort("Error: for test = *.log, values of Y must be positive")
+        }
+        Y = log(Y)
+      })
+    if (regularize) {
+      if (is.null(C)) {
+
+      } else {
+
+      }
+    } else {
+      if (is.null(C)) { ### TODO !!!
+        result = broom::tidy(lm(y ~ 0 + x,
+                                data = list(y = t(Y), x = X1W)))
+      } else {
+        result = lm(y ~ 0 + x,
+                    data = list(y = t(Y), x = cbind(X1Wdiff, C)))
+        rownames(result$coefficients) = sub("^x", "", rownames(result$coefficients))
+        estimatormatrix = - t(colMeans(W[, -1]) / mean(W[, 1])) %x% diag(ncol(X) + 1)
+        estimatormatrix = cbind(matrix(0, nrow = ncol(X) + 1, ncol = ncol(X) + 1),
+                                estimatormatrix,
+                                matrix(0, nrow = ncol(X) + 1, ncol = ncol(C)))
+        rownames(estimatormatrix) = paste(colnames(W)[1], c(colnames(X), "1"), sep = ".")
+        colnames(estimatormatrix) = rownames(result$coefficients)
+        result = .supplement.estimators(result, estimatormatrix)
+        result = dplyr::bind_rows(result, .id = "response")
+        result = dplyr::as_tibble(result)
+      }
+    }
 
   }, "reducedrankridge" = { # -----------------------------------------
     inform("Reduced-rank ridge regression ...")
