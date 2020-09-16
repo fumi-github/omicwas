@@ -428,10 +428,12 @@ ctRUV = function (X, W, Y, C = NULL,
   Wdiff = cbind(1, W[, -1] -  W[, 1] %*% t(colMeans(W[, -1]) / mean(W[, 1])))
   colnames(Wdiff)[1] = "1"
   X1Wdiff = as.matrix(do.call(cbind, apply(Wdiff, 2, function(W_h) {cbind(as.data.frame(X), 1) * W_h})))
-  Wcent = cbind(1, .colcenter(W))
-  colnames(Wcent)[1] = "1"
-  X1Wcent = as.matrix(do.call(cbind, apply(Wcent, 2, function(W_h) {cbind(as.data.frame(X), 1) * W_h})))
-  X1Wcent = X1Wcent[, colnames(X1Wcent) != "1.1"]
+  oneWcent = cbind(1, .colcenter(W))
+  colnames(oneWcent)[1] = "1"
+  X1oneWcent = as.matrix(do.call(cbind, apply(oneWcent, 2, function(W_h) {cbind(as.data.frame(X), 1) * W_h})))
+  X1oneWcent = X1oneWcent[, colnames(X1oneWcent) != "1.1"]
+  X1Wcent = as.matrix(do.call(cbind, apply(.colcenter(W), 2, function(W_h) {cbind(as.data.frame(X), 1) * W_h})))
+  XWcent = X1Wcent[, -c((ncol(X)+1)*(1:ncol(W)))]
 
   switch(test, "full" = { # --------------------------------
     inform("Linear regression ...")
@@ -467,9 +469,12 @@ ctRUV = function (X, W, Y, C = NULL,
       if (is.null(C)) {
 
       } else {
-        Yadj1 = t(lm(y ~ x,
-                     data = list(y = t(Y), x = C))$residuals)
-        result = .lmridgeLW76(X1Wcent, t(Yadj1))
+        # Yadj1 = t(lm(y ~ x,
+        #              data = list(y = t(Y), x = C))$residuals)
+        # result = .lmridgeLW76(X1oneWcent, t(Yadj1))
+        YadjX_W = t(lm(y ~ 0 + x,
+                       data = list(y = t(Y), x = cbind(X, W, C)))$residuals)
+        result = .lmridgeLW76(XWcent, t(YadjX_W))
       }
     } else {
       if (is.null(C)) { ### TODO !!!
