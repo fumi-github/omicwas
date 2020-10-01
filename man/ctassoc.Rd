@@ -27,16 +27,18 @@ ctassoc(
 X, W, Y, C should be numeric.}
 
 \item{test}{Statistical test to apply; either \code{"full"}, \code{"marginal"},
-\code{"nls.identity"}, \code{"nls.log"}, \code{"nls.logit"} or \code{"reducedrankridge"}.}
+\code{"nls.identity"}, \code{"nls.log"}, \code{"nls.logit"},
+\code{"propdiff.identity"}, \code{"propdiff.log"}, \code{"propdiff.logit"}
+or \code{"reducedrankridge"}.}
 
 \item{regularize}{Whether to apply Tikhonov (ie ridge) regularization
 to \eqn{\beta_{h j k}}.
 The regularization parameter is chosen automatically according to
 an unbiased version of (Lawless & Wang, 1976).
-Effective for \code{nls.*} tests.}
+Effective for \code{nls.*} and \code{propdiff.*} tests.}
 
 \item{num.cores}{Number of CPU cores to use.
-Full and marginal tests are run in serial, thus num.cores is ignored.}
+Full, marginal and propdiff tests are run in serial, thus num.cores is ignored.}
 
 \item{chunk.size}{The size of job for a CPU core in one batch.
 If you have many cores but limited memory, and there is a memory failure,
@@ -131,6 +133,23 @@ the interacting terms \eqn{W_{i h} * X_{i k}}.
 Ridge regression is fit by minimizing the residual sum of squares (RSS) plus
 \eqn{\lambda \sum_{h k} \beta_{h j k}^2}, where \eqn{\lambda > 0} is the
 regularization parameter.
+
+The propdiff tests try to cope with multicollinearity by, roughly speaking,
+using mean-centered \eqn{W_{i h}}.
+We obtain, instead of \eqn{\beta_{h j k}}, the deviation of
+\eqn{\beta_{h j k}} from the average across cell types.
+Accordingly, the null hypothesis changes.
+The original null hypothesis was \eqn{\beta_{h j k} = 0}.
+The null hypothesis when centered is
+\eqn{\beta_{h j k} - (\sum_{i h'} W_{i h'} \beta_{h' j k}) / (\sum_{i h'} W_{i h'}) = 0}.
+It becomes difficult to detect a signal for a major cell type,
+because \eqn{\beta_{h j k}} would be close to the average across cell types.
+The tests \code{propdiff.log} and \code{propdiff.logit} include
+an additional preprocessing step that converts \eqn{Y_{j i}} to \eqn{f(Y_{j i})}.
+Apart from the preprocessing, the computations are performed in linear scale.
+As the preprocessing distorts the linearity between the dependent variable
+and (the centered) \eqn{W_{i h}},
+I actually think \code{propdiff.identity} is better.
 }
 \examples{
 \donttest{

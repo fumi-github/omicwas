@@ -76,20 +76,39 @@
 #' \eqn{\lambda \sum_{h k} \beta_{h j k}^2}, where \eqn{\lambda > 0} is the
 #' regularization parameter.
 #'
+#' The propdiff tests try to cope with multicollinearity by, roughly speaking,
+#' using mean-centered \eqn{W_{i h}}.
+#' We obtain, instead of \eqn{\beta_{h j k}}, the deviation of
+#' \eqn{\beta_{h j k}} from the average across cell types.
+#' Accordingly, the null hypothesis changes.
+#' The original null hypothesis was \eqn{\beta_{h j k} = 0}.
+#' The null hypothesis when centered is
+#' \eqn{\beta_{h j k} - (\sum_{i h'} W_{i h'} \beta_{h' j k}) / (\sum_{i h'} W_{i h'}) = 0}.
+#' It becomes difficult to detect a signal for a major cell type,
+#' because \eqn{\beta_{h j k}} would be close to the average across cell types.
+#' The tests \code{propdiff.log} and \code{propdiff.logit} include
+#' an additional preprocessing step that converts \eqn{Y_{j i}} to \eqn{f(Y_{j i})}.
+#' Apart from the preprocessing, the computations are performed in linear scale.
+#' As the preprocessing distorts the linearity between the dependent variable
+#' and (the centered) \eqn{W_{i h}},
+#' I actually think \code{propdiff.identity} is better.
+#'
 #' @param X Matrix (or vector) of traits; samples x traits.
 #' @param W Matrix of cell type composition; samples x cell types.
 #' @param Y Matrix (or vector) of bulk omics measurements; markers x samples.
 #' @param C Matrix (or vector) of covariates; samples x covariates.
 #' X, W, Y, C should be numeric.
 #' @param test Statistical test to apply; either \code{"full"}, \code{"marginal"},
-#' \code{"nls.identity"}, \code{"nls.log"}, \code{"nls.logit"} or \code{"reducedrankridge"}.
+#' \code{"nls.identity"}, \code{"nls.log"}, \code{"nls.logit"},
+#' \code{"propdiff.identity"}, \code{"propdiff.log"}, \code{"propdiff.logit"}
+#' or \code{"reducedrankridge"}.
 #' @param regularize Whether to apply Tikhonov (ie ridge) regularization
 #' to \eqn{\beta_{h j k}}.
 #' The regularization parameter is chosen automatically according to
 #' an unbiased version of (Lawless & Wang, 1976).
-#' Effective for \code{nls.*} tests.
+#' Effective for \code{nls.*} and \code{propdiff.*} tests.
 #' @param num.cores Number of CPU cores to use.
-#' Full and marginal tests are run in serial, thus num.cores is ignored.
+#' Full, marginal and propdiff tests are run in serial, thus num.cores is ignored.
 #' @param chunk.size The size of job for a CPU core in one batch.
 #' If you have many cores but limited memory, and there is a memory failure,
 #' decrease num.cores and/or chunk.size.
@@ -140,8 +159,10 @@ ctassoc = function (X, W, Y, C = NULL,
                     num.cores = 1,
                     chunk.size = 1000,
                     seed = 123) {
-  if (!(test %in% c("reducedrankridge", "full", "marginal", "nls.identity", "nls.log", "nls.logit"))) {
-    abort('Error: test must be either "reducedrankridge", "full", "marginal", "nls.identity", "nls.log", "nls.logit"')
+  if (!(test %in% c("reducedrankridge", "full", "marginal",
+                    "nls.identity", "nls.log", "nls.logit",
+                    "propdiff.identity", "propdiff.log", "propdiff.logit"))) {
+    abort('Error: test must be either "reducedrankridge", "full", "marginal", "nls.identity", "nls.log", "nls.logit", "propdiff.identity", "propdiff.log", "propdiff.logit"')
   }
   X = .as.matrix(X, d = "vertical", nam = "X")
   W = .as.matrix(W, d = "vertical", nam = "W")
@@ -193,6 +214,27 @@ ctassoc = function (X, W, Y, C = NULL,
   }, "full" = {
     .full_assoc(X, W, Y, C,
                 test = test,
+                num.cores = num.cores,
+                chunk.size = chunk.size)
+  }, "propdiff.identity" = {
+    .full_assoc(X, W, Y, C,
+                test = "propdiff",
+                nls.link = "identity",
+                regularize = regularize,
+                num.cores = num.cores,
+                chunk.size = chunk.size)
+  }, "propdiff.log" = {
+    .full_assoc(X, W, Y, C,
+                test = "propdiff",
+                nls.link = "log",
+                regularize = regularize,
+                num.cores = num.cores,
+                chunk.size = chunk.size)
+  }, "propdiff.logit" = {
+    .full_assoc(X, W, Y, C,
+                test = "propdiff",
+                nls.link = "logit",
+                regularize = regularize,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   }, "marginal" = {
@@ -402,6 +444,15 @@ ctRUV = function (X, W, Y, C = NULL,
                                    function(X_k) {as.data.frame(W) * X_k})))
   colnames(oneXotimesW) =
     sub('([^.]*)\\.([^.]*)', '\\2.\\1', colnames(oneXotimesW), perl = TRUE)
+  Wdiff = cbind(1, W[, -1] -  W[, 1] %*% t(colMeans(W)[-1] / mean(W[, 1])))
+  colnames(Wdiff)[1] = "1"
+  X1Wdiff = as.matrix(do.call(cbind, apply(Wdiff, 2, function(W_h) {cbind(as.data.frame(X), 1) * W_h})))
+  oneWcent = cbind(1, .colcenter(W))
+  colnames(oneWcent)[1] = "1"
+  X1oneWcent = as.matrix(do.call(cbind, apply(oneWcent, 2, function(W_h) {cbind(as.data.frame(X), 1) * W_h})))
+  X1oneWcent = X1oneWcent[, colnames(X1oneWcent) != "1.1"]
+  X1Wcent = as.matrix(do.call(cbind, apply(.colcenter(W), 2, function(W_h) {cbind(as.data.frame(X), 1) * W_h})))
+  XWcent = X1Wcent[, -c((ncol(X)+1)*(1:ncol(W)))]
 
   switch(test, "full" = { # --------------------------------
     inform("Linear regression ...")
@@ -414,6 +465,59 @@ ctRUV = function (X, W, Y, C = NULL,
     }
     result$term = sub("^x", "", result$term)
     result = dplyr::rename(result, celltypeterm = .data$term)
+
+  }, "propdiff" = { # --------------------------------
+    inform("Interaction with proportion difference ...")
+    switch(
+      nls.link,
+      logit = {
+        if (min(Y, na.rm = TRUE) < 0 | max(Y, na.rm = TRUE) > 1) {
+          abort("Error: for test = *.logit, values of Y must be between 0 and 1")
+        }
+        if (min(Y, na.rm = TRUE) == 0 | max(Y, na.rm = TRUE) == 1) {
+          Y = 0.998 * Y + 0.001
+        }
+        Y = qlogis(Y)
+      }, log = {
+        if (min(Y, na.rm = TRUE) <= 0) {
+          abort("Error: for test = *.log, values of Y must be positive")
+        }
+        Y = log(Y)
+      })
+    if (regularize) {
+      if (is.null(C)) {
+        YadjX_W = t(lm(y ~ 0 + x,
+                       data = list(y = t(Y), x = cbind(X, W)))$residuals)
+      } else {
+        YadjX_W = t(lm(y ~ 0 + x,
+                       data = list(y = t(Y), x = cbind(X, W, C)))$residuals)
+      }
+      result = .lmridgeLW76(XWcent, t(YadjX_W))
+    } else {
+      if (is.null(C)) {
+        result = lm(y ~ 0 + x,
+                    data = list(y = t(Y), x = X1Wdiff))
+        rownames(result$coefficients) = sub("^x", "", rownames(result$coefficients))
+        estimatormatrix = - t(colMeans(W)[-1] / mean(W[, 1])) %x% diag(ncol(X) + 1)
+        estimatormatrix = cbind(matrix(0, nrow = ncol(X) + 1, ncol = ncol(X) + 1),
+                                estimatormatrix)
+        rownames(estimatormatrix) = paste(colnames(W)[1], c(colnames(X), "1"), sep = ".")
+        colnames(estimatormatrix) = rownames(result$coefficients)
+      } else {
+        result = lm(y ~ 0 + x,
+                    data = list(y = t(Y), x = cbind(X1Wdiff, C)))
+        rownames(result$coefficients) = sub("^x", "", rownames(result$coefficients))
+        estimatormatrix = - t(colMeans(W)[-1] / mean(W[, 1])) %x% diag(ncol(X) + 1)
+        estimatormatrix = cbind(matrix(0, nrow = ncol(X) + 1, ncol = ncol(X) + 1),
+                                estimatormatrix,
+                                matrix(0, nrow = ncol(X) + 1, ncol = ncol(C)))
+        rownames(estimatormatrix) = paste(colnames(W)[1], c(colnames(X), "1"), sep = ".")
+        colnames(estimatormatrix) = rownames(result$coefficients)
+      }
+      result = .supplement.estimators(result, estimatormatrix)
+      result = dplyr::bind_rows(result, .id = "response")
+      result = dplyr::as_tibble(result)
+    }
 
   }, "reducedrankridge" = { # -----------------------------------------
     inform("Reduced-rank ridge regression ...")
