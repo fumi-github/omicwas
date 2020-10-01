@@ -467,15 +467,13 @@ ctRUV = function (X, W, Y, C = NULL,
       })
     if (regularize) {
       if (is.null(C)) {
-
+        YadjX_W = t(lm(y ~ 0 + x,
+                       data = list(y = t(Y), x = cbind(X, W)))$residuals)
       } else {
-        # Yadj1 = t(lm(y ~ x,
-        #              data = list(y = t(Y), x = C))$residuals)
-        # result = .lmridgeLW76(X1oneWcent, t(Yadj1))
         YadjX_W = t(lm(y ~ 0 + x,
                        data = list(y = t(Y), x = cbind(X, W, C)))$residuals)
-        result = .lmridgeLW76(XWcent, t(YadjX_W))
       }
+      result = .lmridgeLW76(XWcent, t(YadjX_W))
     } else {
       if (is.null(C)) {
         result = lm(y ~ 0 + x,
