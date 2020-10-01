@@ -12,9 +12,6 @@ test_that("ctassoc works for various test options", {
   load("../GSE42861smallresult2.RData")
   load("../GSE42861smallresult3.RData")
   expect_equal(
-    head(ctRUV(X = X, W = W, Y = Y, C = C), 100),
-    resRUV)
-  expect_equal(
     head(ctassoc(X = X, W = W, Y = Y, C = C,
                  test = "reducedrankridge")$coefficients$statistic, 100),
     resreducedrankridge$coefficients$statistic)
