@@ -425,7 +425,7 @@ ctRUV = function (X, W, Y, C = NULL,
                                    function(X_k) {as.data.frame(W) * X_k})))
   colnames(oneXotimesW) =
     sub('([^.]*)\\.([^.]*)', '\\2.\\1', colnames(oneXotimesW), perl = TRUE)
-  Wdiff = cbind(1, W[, -1] -  W[, 1] %*% t(colMeans(W[, -1]) / mean(W[, 1])))
+  Wdiff = cbind(1, W[, -1] -  W[, 1] %*% t(colMeans(W)[-1] / mean(W[, 1])))
   colnames(Wdiff)[1] = "1"
   X1Wdiff = as.matrix(do.call(cbind, apply(Wdiff, 2, function(W_h) {cbind(as.data.frame(X), 1) * W_h})))
   oneWcent = cbind(1, .colcenter(W))
@@ -477,23 +477,29 @@ ctRUV = function (X, W, Y, C = NULL,
         result = .lmridgeLW76(XWcent, t(YadjX_W))
       }
     } else {
-      if (is.null(C)) { ### TODO !!!
-        result = broom::tidy(lm(y ~ 0 + x,
-                                data = list(y = t(Y), x = X1W)))
+      if (is.null(C)) {
+        result = lm(y ~ 0 + x,
+                    data = list(y = t(Y), x = X1Wdiff))
+        rownames(result$coefficients) = sub("^x", "", rownames(result$coefficients))
+        estimatormatrix = - t(colMeans(W)[-1] / mean(W[, 1])) %x% diag(ncol(X) + 1)
+        estimatormatrix = cbind(matrix(0, nrow = ncol(X) + 1, ncol = ncol(X) + 1),
+                                estimatormatrix)
+        rownames(estimatormatrix) = paste(colnames(W)[1], c(colnames(X), "1"), sep = ".")
+        colnames(estimatormatrix) = rownames(result$coefficients)
       } else {
         result = lm(y ~ 0 + x,
                     data = list(y = t(Y), x = cbind(X1Wdiff, C)))
         rownames(result$coefficients) = sub("^x", "", rownames(result$coefficients))
-        estimatormatrix = - t(colMeans(W[, -1]) / mean(W[, 1])) %x% diag(ncol(X) + 1)
+        estimatormatrix = - t(colMeans(W)[-1] / mean(W[, 1])) %x% diag(ncol(X) + 1)
         estimatormatrix = cbind(matrix(0, nrow = ncol(X) + 1, ncol = ncol(X) + 1),
                                 estimatormatrix,
                                 matrix(0, nrow = ncol(X) + 1, ncol = ncol(C)))
         rownames(estimatormatrix) = paste(colnames(W)[1], c(colnames(X), "1"), sep = ".")
         colnames(estimatormatrix) = rownames(result$coefficients)
-        result = .supplement.estimators(result, estimatormatrix)
-        result = dplyr::bind_rows(result, .id = "response")
-        result = dplyr::as_tibble(result)
       }
+      result = .supplement.estimators(result, estimatormatrix)
+      result = dplyr::bind_rows(result, .id = "response")
+      result = dplyr::as_tibble(result)
     }
 
   }, "reducedrankridge" = { # -----------------------------------------
