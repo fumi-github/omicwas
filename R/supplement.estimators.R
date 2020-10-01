@@ -9,8 +9,8 @@
   result =
     purrr::pmap(
       list(
-        coefficients = plyr::alply(mlm$coefficients, 2),
-        residuals = plyr::alply(mlm$residuals, 2)),
+        coefficients = asplit(mlm$coefficients, 2),
+        residuals = asplit(mlm$residuals, 2)),
       function(coefficients, residuals) {
         x = list(
           df.residual = df.residual,
