@@ -184,21 +184,21 @@ ctassoc = function (X, W, Y, C = NULL,
   }, "nls.identity" = {
     .full_assoc(X, W, Y, C,
                 test = "nls",
-                nls.link = "identity",
+                link = "identity",
                 regularize = regularize,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   }, "nls.log" = {
     .full_assoc(X, W, Y, C,
                 test = "nls",
-                nls.link = "log",
+                link = "log",
                 regularize = regularize,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   }, "nls.logit" = {
     .full_assoc(X, W, Y, C,
                 test = "nls",
-                nls.link = "logit",
+                link = "logit",
                 regularize = regularize,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
@@ -219,21 +219,21 @@ ctassoc = function (X, W, Y, C = NULL,
   }, "propdiff.identity" = {
     .full_assoc(X, W, Y, C,
                 test = "propdiff",
-                nls.link = "identity",
+                link = "identity",
                 regularize = regularize,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   }, "propdiff.log" = {
     .full_assoc(X, W, Y, C,
                 test = "propdiff",
-                nls.link = "log",
+                link = "log",
                 regularize = regularize,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
   }, "propdiff.logit" = {
     .full_assoc(X, W, Y, C,
                 test = "propdiff",
-                nls.link = "logit",
+                link = "logit",
                 regularize = regularize,
                 num.cores = num.cores,
                 chunk.size = chunk.size)
@@ -409,7 +409,7 @@ ctRUV = function (X, W, Y, C = NULL,
 
 .full_assoc = function (X, W, Y, C,
                         test,
-                        nls.link,
+                        link,
                         regularize = TRUE,
                         alpha,
                         lower.limit,
@@ -469,7 +469,7 @@ ctRUV = function (X, W, Y, C = NULL,
   }, "propdiff" = { # --------------------------------
     inform("Interaction with proportion difference ...")
     switch(
-      nls.link,
+      link,
       logit = {
         if (min(Y, na.rm = TRUE) < 0 | max(Y, na.rm = TRUE) > 1) {
           abort("Error: for test = *.logit, values of Y must be between 0 and 1")
@@ -708,13 +708,13 @@ ctRUV = function (X, W, Y, C = NULL,
     # colnames(estimate) = colnames(SE) = colnames(X1W)
 
   }, "nls" = { # -----------------------------------------
-    inform(paste0("nls.", nls.link, " ..."))
+    inform(paste0("nls.", link, " ..."))
     batchsize = num.cores * chunk.size
     totalsize = nrow(Y)
     nbatches = ceiling(totalsize / batchsize)
 
     switch(
-      nls.link,
+      link,
       logit = {
         if (min(Y, na.rm = TRUE) < 0 | max(Y, na.rm = TRUE) > 1) {
           abort("Error: for test = nls.logit, values of Y must be between 0 and 1")
@@ -736,7 +736,7 @@ ctRUV = function (X, W, Y, C = NULL,
     rm(Y)
     gc()
 
-    mu = switch(nls.link, "identity" = { # --------------------
+    mu = switch(link, "identity" = { # --------------------
       if (is.null(C)) {
         function (X, W, oneXotimesW, alpha, beta, sqrtlambda,
                   gradientalpha = FALSE,
