@@ -9,13 +9,6 @@ In order to install the most recent version:
     install.packages("devtools")
     devtools::install_github("fumi-github/omicwas", build_vignettes = TRUE)
 
-If you encounter dependency error for `sva` package,
-install it from Bioconductor:
-
-    if (!requireNamespace("BiocManager", quietly = TRUE))
-        install.packages("BiocManager")
-    BiocManager::install("sva")
-
 To install from CRAN archive (possibly a version older than github):
 
     install.packages("omicwas")
