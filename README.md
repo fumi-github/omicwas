@@ -24,6 +24,6 @@ To uninstall package:
 
 ## Information
 
-Preprint available from [bioRxiv](https://biorxiv.org/cgi/content/short/2020.06.18.158758v1)
+Please cite
 
-[CSHL (14 Nov 2019) poster](http://103.253.147.127/PUBLICATIONS/191114cshl.pdf)
+[Takeuchi, F., Kato, N. Nonlinear ridge regression improves cell-type-specific differential expression analysis. BMC Bioinformatics 22, 141 (2021)](https://doi.org/10.1186/s12859-021-03982-3)
